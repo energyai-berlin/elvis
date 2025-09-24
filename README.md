@@ -43,9 +43,6 @@ plt.plot(load_profile)
 
 ## Applications in the wild and acknowledgements
 
-ELVIS was developed at the [DAI-Laboratory](https://dai-labor.de/) supported in part by Stromnetz Berlin, as well as the Federal Minister for Environment, Nature Conservation and Nuclear Safety (BMU) through the research project [FlexNet4E-Mobility](https://www.erneuerbar-mobil.de/projekte/flexnet4e-mobility) (funding reference 16EM3147-2) and the Federal Ministry for Economic Affairs and Energy (BMWi) throught the project [Neue Berliner Luft](https://www.neueberlinerluft.de/) (funding reference 01MZ18013E).
+ELVIS was developed at the [DAI-Laboratory](https://dai-labor.de/) supported in part by Stromnetz Berlin, as well as the Federal Minister for Environment, Nature Conservation and Nuclear Safety (BMU) through the research project [FlexNet4E-Mobility](
 
-It's conceputally based on earlier similar simulations tools that have been peer-reviewed and published in:
-* Draz, Mahmoud, Marcus Voß, Daniel Freund, and Sahin Albayrak "The impact of electric vehicles on low voltage grids: A case study of berlin." 2018 Power Systems Computation Conference (PSCC). IEEE, 2018.
-* Draz, Mahmoud, and Sahin Albayrak. "A Power Demand Estimator for Electric Vehicle Charging Infrastructure." 2019 IEEE Milan PowerTech. IEEE, 2019.
 
