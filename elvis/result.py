@@ -245,7 +245,7 @@ class ElvisResult:
             - Storage integration
             - PV integration
         """
-        total_energy = self.total_energy_charged(resolution=self.scenario.resolution)
+        total_energy = self.total_energy_charged()
         electricity_costs = total_energy * electricity_rate
 
         return electricity_costs

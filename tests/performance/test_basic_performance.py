@@ -6,6 +6,9 @@ import time
 import psutil
 import pytest
 
+import elvis
+import elvis.config
+
 
 @pytest.mark.performance
 class TestBasicPerformance:

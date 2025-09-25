@@ -1,5 +1,6 @@
-"""This module contains all classes necessary to configure scenarios that can then be simulated
-by Elvis.
+"""This module contains all classes necessary to configure scenarios that can then be simulated by Elvis.
+
+Legacy configuration module - functionality will be migrated to modular config package.
 """
 
 from __future__ import annotations
@@ -24,11 +25,9 @@ from elvis.types import (
 )
 
 if TYPE_CHECKING:
-    from elvis.battery import EVBattery
     from elvis.charging_event import ChargingEvent
     from elvis.vehicle import ElectricVehicle
 
-from elvis.battery import EVBattery
 from elvis.charging_event_generator import create_charging_events_from_gmm as events_from_gmm
 from elvis.charging_event_generator import (
     create_charging_events_from_weekly_distribution as events_from_week_arr_dist,
@@ -42,7 +41,6 @@ from elvis.utility.elvis_general import (
     repeat_data,
     transform_data,
 )
-from elvis.vehicle import ElectricVehicle
 
 
 class ScenarioConfig:
@@ -204,7 +202,12 @@ class ScenarioConfig:
 
     @staticmethod
     def from_dict(dictionary: ConfigDict) -> ScenarioConfig:
-        assert type(dictionary) is dict, "Input of wrong type: " + str(type(dictionary))
+        from elvis.exceptions import InvalidParameterError
+
+        if not isinstance(dictionary, dict):
+            raise InvalidParameterError(
+                f"Configuration must be a dictionary, got {type(dictionary).__name__}"
+            ).add_context("input_type", type(dictionary).__name__)
 
         config = ScenarioConfig()
         config.with_infrastructure(dictionary["infrastructure"])
@@ -301,31 +304,44 @@ class ScenarioConfig:
 
     def with_arrival_distribution(self, arrival_distribution):
         # TODO: Add pandas
-        assert type(arrival_distribution) is list, (
-            "Arrival distribution must be of type list or pandas DataFrame."
-        )
+        from elvis.config.validation import ConfigValidator
 
-        msg_invalid_value_type = (
-            "Arrival distribution should be of type: pandas DataFrame or a "
-            "list containing float or int."
-        )
-        # Check if all values in list are either float or int
-        if arrival_distribution is list:
-            assert all(isinstance(x, (float, int)) for x in arrival_distribution), (
-                msg_invalid_value_type
+        # Use the centralized validation system
+        try:
+            self.arrival_distribution = ConfigValidator.validate_arrival_distribution(
+                arrival_distribution
             )
-        else:
-            NotImplementedError()
+        except Exception as e:
+            # Convert any validation error to our exception system
+            from elvis.exceptions import InvalidParameterError
 
-        self.arrival_distribution = arrival_distribution
+            if not isinstance(e, InvalidParameterError):
+                raise InvalidParameterError(str(e)) from e
+            raise
+
+        return self
 
     # Outdated
     def with_charging_events(self, charging_events):
         """Update the arrival distribution to use."""
-        assert isinstance(charging_events, list), "charging_events must be of type list"
-        assert all(isinstance(x, ChargingEvent) for x in charging_events), (
-            "All elements of charging_events must be of type ChargingEvent"
-        )
+        from elvis.charging_event import ChargingEvent
+        from elvis.exceptions import InvalidParameterError
+
+        if not isinstance(charging_events, list):
+            raise InvalidParameterError(
+                f"charging_events must be a list, got {type(charging_events).__name__}"
+            ).add_context("input_type", type(charging_events).__name__)
+
+        for i, event in enumerate(charging_events):
+            if not isinstance(event, ChargingEvent):
+                raise (
+                    InvalidParameterError(
+                        f"All elements of charging_events must be ChargingEvent instances, "
+                        f"got {type(event).__name__} at index {i}"
+                    )
+                    .add_context("index", i)
+                    .add_context("event_type", type(event).__name__)
+                )
         self.charging_events = charging_events
 
         return self
@@ -466,56 +482,44 @@ class ScenarioConfig:
     def with_scheduling_policy(self, scheduling_policy_input):
         """Update the scheduling policy to use.
         Default: :obj: `elvis.sched.schedulers.Uncontrolled`.
-        Use default if input not a str or str can not be matched.
 
         Args:
-            scheduling_policy_input: Either str containing name of the scheduling policy to be used.
-                Or instance of :obj: `elvis.sched.schedulers.SchedulingPolicy`.
+            scheduling_policy_input: Either str containing name of the scheduling policy to be used,
+                SchedulingPolicyType enum, or instance of :obj: `elvis.sched.schedulers.SchedulingPolicy`.
         """
-        # set default
-        scheduling_policy = schedulers.Uncontrolled()
+        from elvis.config.validation import ConfigValidator
+        from elvis.enums import SchedulingPolicyType
 
-        # if input is already instance of Scheduling Policy assign
+        # if input is already instance of Scheduling Policy, use directly
         if isinstance(scheduling_policy_input, schedulers.SchedulingPolicy):
             self.scheduling_policy = scheduling_policy_input
             return self
 
-        # ensure input is str. If not return default
-        if type(scheduling_policy_input) is not str:
-            logging.error(
-                "Scheduling policy should be of type str or an instance of "
-                "SchedulingPolicy. The uncontrolled strategy has been used as a default."
-            )
-            self.scheduling_policy = scheduling_policy
-            return self
-
-        # Match string
-        if scheduling_policy_input in ("Uncontrolled", "UC", "Uc", "uc"):
-            self.scheduling_policy = schedulers.Uncontrolled()
-
-        elif scheduling_policy_input in ("Discrimination Free", "DF", "df"):
-            self.scheduling_policy = schedulers.DiscriminationFree()
-
-        elif scheduling_policy_input == "FCFS":
-            self.scheduling_policy = schedulers.FCFS()
-
-        elif scheduling_policy_input in ("With Storage", "ws", "WS"):
-            self.scheduling_policy = schedulers.WithStorage()
-
-        elif scheduling_policy_input in ("Optimized", "opt", "OPT"):
-            self.scheduling_policy = schedulers.Optimized()
-
-        # invalid str use default: Uncontrolled
+        # If it's already an enum, use it directly
+        if isinstance(scheduling_policy_input, SchedulingPolicyType):
+            policy_type = scheduling_policy_input
         else:
-            logging.error(
-                '"%s" can not be matched to any existing scheduling policy.'
-                'Please use: "Uncontrolled", "Discrimination Free", "FCFS", '
-                '"With Storage" or "Optimized". '
-                "Uncontrolled is the default value and has been used for the simulation.",
-                str(scheduling_policy_input),
-            )
+            # Try to convert string to enum (with validation)
+            try:
+                policy_type = ConfigValidator.validate_scheduling_policy_string(
+                    str(scheduling_policy_input)
+                )
+            except Exception as e:
+                logging.exception(f"Invalid scheduling policy '{scheduling_policy_input}': {e}")
+                logging.exception("Using default Uncontrolled policy")
+                self.scheduling_policy = schedulers.Uncontrolled()
+                return self
 
-            self.scheduling_policy = schedulers.Uncontrolled()
+        # Map enum to scheduler instance
+        policy_mapping = {
+            SchedulingPolicyType.UNCONTROLLED: schedulers.Uncontrolled(),
+            SchedulingPolicyType.DISCRIMINATION_FREE: schedulers.DiscriminationFree(),
+            SchedulingPolicyType.FCFS: schedulers.FCFS(),
+            SchedulingPolicyType.WITH_STORAGE: schedulers.WithStorage(),
+            SchedulingPolicyType.OPTIMIZED: schedulers.Optimized(),
+        }
+
+        self.scheduling_policy = policy_mapping[policy_type]
         return self
 
     def with_infrastructure(self, infrastructure=None, **kwargs):
@@ -589,6 +593,8 @@ class ScenarioConfig:
 
     def with_vehicle_types(self, vehicle_types=None, **kwargs):
         """Update the vehicle types to use."""
+        from elvis.vehicle import ElectricVehicle
+
         if vehicle_types is not None:
             for vehicle_type in vehicle_types:
                 if isinstance(vehicle_type, ElectricVehicle):
@@ -662,6 +668,9 @@ class ScenarioConfig:
                 - If kwargs are passed and the keys do not contain the variable names listed
                     above.
         """
+        from elvis.battery import EVBattery
+        from elvis.vehicle import ElectricVehicle
+
         # if list with multiple vehicle_type instances is passed add multiple
         if type(vehicle_type) is list:
             for vehicle in vehicle_type:
