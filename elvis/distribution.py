@@ -1,4 +1,3 @@
-
 import math
 
 
@@ -6,11 +5,11 @@ class Distribution:
     """Represents a distribution of some x value to a y value."""
 
     def __getitem__(self, key):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @property
     def bounds(self):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @property
     def min_x(self):
@@ -37,7 +36,7 @@ class NormalDistribution(Distribution):
         self.sigma = sigma
 
         # 1 / (sigma*sqrt(2*pi))
-        self.fac = 1.0 / (sigma * math.sqrt(2.0 * math.pi)) 
+        self.fac = 1.0 / (sigma * math.sqrt(2.0 * math.pi))
 
     def __getitem__(self, key):
         # ((x-mu)/sigma)^2
@@ -49,14 +48,11 @@ class NormalDistribution(Distribution):
     @property
     def bounds(self):
         return {
-            "x": {
-                "min": -math.inf,
-                "max": math.inf
-            },
+            "x": {"min": -math.inf, "max": math.inf},
             "y": {
                 "min": 0,
                 "max": 1,
-            }
+            },
         }
 
 
@@ -70,7 +66,9 @@ class InterpolatedDistribution(Distribution):
 
     @staticmethod
     def linear(points, bounds):
-        return InterpolatedDistribution(points, bounds, InterpolatedDistribution._linear_interpolation)
+        return InterpolatedDistribution(
+            points, bounds, InterpolatedDistribution._linear_interpolation
+        )
 
     @staticmethod
     def _linear_interpolation(y0, y1, offset):
@@ -104,7 +102,8 @@ class InterpolatedDistribution(Distribution):
 
 class EquallySpacedInterpolatedDistribution(Distribution):
     """A distribution that generates new values using some form of interpolation of a set of given points,
-     whose x values are the same distance apart."""
+    whose x values are the same distance apart.
+    """
 
     def __init__(self, points, bounds, interpolate):
         self.points = points
@@ -114,7 +113,9 @@ class EquallySpacedInterpolatedDistribution(Distribution):
 
     @staticmethod
     def linear(points, bounds):
-        return EquallySpacedInterpolatedDistribution(points, bounds, InterpolatedDistribution._linear_interpolation)
+        return EquallySpacedInterpolatedDistribution(
+            points, bounds, InterpolatedDistribution._linear_interpolation
+        )
 
     @staticmethod
     def _linear_interpolation(y0, y1, offset):

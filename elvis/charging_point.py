@@ -5,82 +5,96 @@ It is limited by its power limits where as the lower limit has to be understood 
 lower limit or zero.
 
 """
-from elvis.utility.elvis_general import floor
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
 from elvis.infrastructure_node import InfrastructureNode
-from elvis.charging_station import ChargingStation
+from elvis.types import Power, TimeStamp
+from elvis.utility.elvis_general import floor
+
+if TYPE_CHECKING:
+    from elvis.charging_event import ChargingEvent
+    from elvis.charging_station import ChargingStation
 
 
 class ChargingPoint(InfrastructureNode):
     """Represents a point of connection between :obj: `charging_point.ChargingStation` and
-    vehicles."""
+    vehicles.
+    """
 
     counter = 1
 
-    def __init__(self, min_power, max_power, parent):
+    def __init__(self, min_power: Power, max_power: Power, parent: ChargingStation) -> None:
         """Create a charging point given all parameters.
 
         Args:
-            min_power: (float): Min charging power that has to be assigned if not 0.
-            max_power: (float): Max charging power that can be assigned.
-            parent: (:obj: `charging_point.ChargingStation`): Charging station the charging
-            point belongs to.
-            """
+            min_power: Min charging power that has to be assigned if not 0.
+            max_power: Max charging power that can be assigned.
+            parent: Charging station the charging point belongs to.
+        """
+        from elvis.charging_station import ChargingStation
+
         # A charging point must always be connected to a charging station
         assert isinstance(parent, ChargingStation)
-        identification = 'cp ' + str(ChargingPoint.counter)
+        identification = "cp " + str(ChargingPoint.counter)
         ChargingPoint.counter += 1
 
         # set min and max power
         super().__init__(identification, min_power, max_power, parent=parent)
 
-        self.connected_vehicle = None
+        self.connected_vehicle: dict[str, Any] | None = None
 
-    def __str__(self):
+    def __str__(self) -> str:
         printout = str(self.id)
         return printout
 
-    def get_leaving_time(self):
+    def get_leaving_time(self) -> TimeStamp:
         """Make sure a vehicle is connected and return its leaving_time."""
         assert self.connected_vehicle is not None
 
-        return self.connected_vehicle['leaving_time']
+        return self.connected_vehicle["leaving_time"]
 
-    def connect_vehicle(self, event):
+    def connect_vehicle(self, event: ChargingEvent) -> None:
         """Assign dict of charging event as connected vehicle.
 
         Args:
-            event: (:obj: `charging_event.ChargingEvent`): Event of car arrival."""
+            event: (:obj: `charging_event.ChargingEvent`): Event of car arrival.
+        """
         self.connected_vehicle = event.to_dict(deep=False)
 
     def disconnect_vehicle(self):
         """Set field connected_vehicle to None so charging point is available for
-            vehicle connection."""
+        vehicle connection.
+        """
         self.connected_vehicle = None
 
     def charge_vehicle(self, power, resolution):
         """Charges the vehicle according to assigned power, capacity and efficiencies.
-        TODO: add efficiencies"""
-        vehicle_type = self.connected_vehicle['vehicle_type']
+        TODO: add efficiencies
+        """
+        vehicle_type = self.connected_vehicle["vehicle_type"]
         battery = vehicle_type.battery
-        hours = resolution.total_seconds()/3600
+        hours = resolution.total_seconds() / 3600
         # TODO: This should be calculated by chaining some class methods from battery, vehicle type,
         # hardware. Each of them have different ways of converting/transporting power with their
         # specific losses
         delta = power * hours / battery.capacity
 
-        self.connected_vehicle['soc'] = min(1, self.connected_vehicle['soc'] + delta)
+        self.connected_vehicle["soc"] = min(1, self.connected_vehicle["soc"] + delta)
 
     def max_hardware_power(self):
         """Calculate dependent on currently connected car the maximum power possible. Solely based
-            on the charging point and battery boundaries no charging station boundaries considered.
-            A further check whether this power exceeds the charging station boundaries has to be done
-            separately. At the same time it is not checked whether the soc_target is met.
-            TODO: Go up the tree."""
-
+        on the charging point and battery boundaries no charging station boundaries considered.
+        A further check whether this power exceeds the charging station boundaries has to be done
+        separately. At the same time it is not checked whether the soc_target is met.
+        TODO: Go up the tree.
+        """
         if self.connected_vehicle is not None:
             vehicle = self.connected_vehicle
-            vehicle_type = vehicle['vehicle_type']
-            soc = vehicle['soc']
+            vehicle_type = vehicle["vehicle_type"]
+            soc = vehicle["soc"]
             battery = vehicle_type.battery
 
             max_power = min(self.max_power, battery.max_power_possible(soc))
@@ -90,13 +104,13 @@ class ChargingPoint(InfrastructureNode):
 
     def min_hardware_power(self):
         """Calculate dependent on currently connected car the minimum power if not 0 needed
-            to start charging.
-            #TODO: Go up the tree."""
-
+        to start charging.
+        #TODO: Go up the tree.
+        """
         if self.connected_vehicle is not None:
             vehicle = self.connected_vehicle
-            vehicle_type = vehicle['vehicle_type']
-            soc = vehicle['soc']
+            vehicle_type = vehicle["vehicle_type"]
+            soc = vehicle["soc"]
             battery = vehicle_type.battery
 
             min_power = max(self.min_power, battery.min_power_possible(soc))
@@ -113,21 +127,20 @@ class ChargingPoint(InfrastructureNode):
 
         Returns:
             power_to_target: (float): Power needed to reach the given SOC target.
-            If soc_target > current_soc: return 0."""
-
+            If soc_target > current_soc: return 0.
+        """
         if not self.check_soc(soc_target):
             # TODO: Raise SOC out of boundaries error.
-            print('ERROR: SOC exceeded boundaries. SOC: ', soc_target)
-            pass
+            print("ERROR: SOC exceeded boundaries. SOC: ", soc_target)
 
         vehicle = self.connected_vehicle
-        current_soc = self.connected_vehicle['soc']
+        current_soc = self.connected_vehicle["soc"]
 
         # if the battery is already charged further than the given SOC no power is needed
         if current_soc > soc_target:
             return 0
 
-        vehicle_type = vehicle['vehicle_type']
+        vehicle_type = vehicle["vehicle_type"]
         battery = vehicle_type.battery
         battery_capacity = battery.capacity
         timedelta_hours = timedelta.total_seconds() / 3600

@@ -1,4 +1,3 @@
-
 class Power:
     """Unit for electrical power."""
 
@@ -8,6 +7,7 @@ class Power:
     @property
     def kilowatts(self):
         return self.watts / 1000.0
+
 
 class Current:
     """Unit for electrical current."""
@@ -22,6 +22,7 @@ class Current:
     def __mul__(self, hours):
         return Charge(self.amps * hours)
 
+
 class Charge:
     """Unit for electrical charge."""
 
@@ -30,6 +31,7 @@ class Charge:
 
     def energy(self, voltage):
         return Energy(amp_hours * voltage)
+
 
 class Energy:
     """Unit for electrical energy."""

@@ -105,7 +105,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "D", "ANN", "PLR2004", "ARG001", "PLR0913"]
+"tests/*" = ["ALL"]
 "examples/*" = ["D", "ANN", "T201", "S101"]
 "setup.py" = ["D", "ANN"]
 

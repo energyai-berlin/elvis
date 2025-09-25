@@ -314,8 +314,6 @@ infrastructure:
     id: transformer1
     max_power: 220
     min_power: 0
-
-
 mean_park: 4
 num_charging_events: 500
 queue_length: 0

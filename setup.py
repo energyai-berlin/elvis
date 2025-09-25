@@ -2,9 +2,10 @@
 Legacy setup.py for backward compatibility.
 Modern packaging is handled via pyproject.toml - use 'uv build' or 'pip install .' instead.
 """
+
 import setuptools
 
-with open("README.md", "r", encoding="utf-8") as fh:
+with open("README.md", encoding="utf-8") as fh:
     long_description = fh.read()
 
 # Dependencies are now managed via pyproject.toml
@@ -47,6 +48,6 @@ setuptools.setup(
         "Topic :: Scientific/Engineering",
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],
-    python_requires='>=3.11',
+    python_requires=">=3.11",
     keywords=["electric vehicles", "charging infrastructure", "simulation", "energy"],
 )

@@ -2,6 +2,7 @@
 
 import datetime
 import math
+
 import pandas as pd
 
 from elvis.distribution import EquallySpacedInterpolatedDistribution
@@ -42,7 +43,6 @@ def num_time_steps(start_date, end_date, resolution):
     Returns:
         num_time_steps: (int): Number of time steps to be simulated.
     """
-
     return int((end_date - start_date) / resolution) + 1
 
 
@@ -106,7 +106,8 @@ def transform_data(input_df, resolution, start_date, end_date):
             input_data_minute_res.append(interp_input_data[j - 1])
             for k in range(1, interp_steps):
                 input_data_minute_res.append(
-                    (interp_input_data[j - 1][0] + (k * minute_res), prev + (k * step)))
+                    (interp_input_data[j - 1][0] + (k * minute_res), prev + (k * step))
+                )
 
     elif input_resolution_seconds < 60:
         # take the average of datapoints within a minute
@@ -143,15 +144,14 @@ def transform_data(input_df, resolution, start_date, end_date):
         key = (weekday, month)
 
         if key not in available_datapoints:
-            available_datapoints[key] = (
-                [0 for _ in range(0, 24 * 60)], [0 for _ in range(0, 24 * 60)])
+            available_datapoints[key] = ([0 for _ in range(24 * 60)], [0 for _ in range(24 * 60)])
 
         minute_of_day = date.hour * 60 + date.minute
         available_datapoints[key][0][minute_of_day] += value
         available_datapoints[key][1][minute_of_day] += 1
 
     for value in available_datapoints.values():
-        for j in range(0, len(value[0])):
+        for j in range(len(value[0])):
             if value[1][j] <= 1:
                 continue
 
@@ -210,11 +210,11 @@ def adjust_resolution(preload, res_data, res_simulation):
     Returns:
         transformer_preload_new_res: (list): Transformer preload with linearly interpolated data
             points having the res_data of the simulation.
-        """
-
+    """
     x_values = list(range(len(preload)))
     distribution = EquallySpacedInterpolatedDistribution.linear(
-        list(zip(x_values, preload)), None)
+        list(zip(x_values, preload, strict=False)), None
+    )
 
     coefficient = res_simulation / res_data
     x_values_new_res = list(range(math.ceil(len(preload) * 1 / coefficient)))
@@ -238,8 +238,7 @@ def repeat_data(preload, num_simulation_steps):
 
     Returns:
         transformer_preload_repeated: (list): Repeated values. len() = num_simulation_steps.
-        """
-
+    """
     n = math.floor(num_simulation_steps / len(preload))
 
     transformer_preload_repeated = preload * n
@@ -253,8 +252,7 @@ def repeat_data(preload, num_simulation_steps):
 
 def floor(value, decimals=3):
     """Floors a value to 3 decimals."""
-
-    assert isinstance(decimals, int), 'Decimals must be of type int'
+    assert isinstance(decimals, int), "Decimals must be of type int"
 
     coeff = 10**decimals
     value = math.floor(value * coeff) / coeff

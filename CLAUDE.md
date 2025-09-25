@@ -5,8 +5,8 @@
 **ELVIS** (Electric Vehicle Charging Infrastructure Simulator) is a Python-based planning and management tool for electric vehicle charging infrastructure. It simulates charging demand patterns, infrastructure utilization, and energy consumption for various EV charging scenarios.
 
 **Purpose**: Research and analysis tool for EV charging infrastructure planning
-**Goals**: 
-- Model stochastic EV charging behavior and demand patterns  
+**Goals**:
+- Model stochastic EV charging behavior and demand patterns
 - Simulate various charging infrastructure scenarios
 - Generate load profiles and analyze grid impacts
 - Support research in sustainable mobility and energy systems
@@ -134,9 +134,9 @@ with open("data/config_builder/office.yaml", 'r') as f:
 config = ScenarioConfig.from_yaml(yaml_str)
 
 # Run simulation
-results = simulate(config, 
-                  start_date='2020-01-01 00:00:00', 
-                  end_date='2020-12-31 23:00:00', 
+results = simulate(config,
+                  start_date='2020-01-01 00:00:00',
+                  end_date='2020-12-31 23:00:00',
                   resolution='01:00:00')
 
 # Analyze results
@@ -205,7 +205,7 @@ python -m unittest tests.distributions
 - Vehicle types must specify battery capacity, charge power limits, and probability weights
 - Time series data requires proper resolution alignment
 
-### Performance Considerations  
+### Performance Considerations
 - Large-scale simulations may require significant memory for event generation
 - Arrival distributions should be normalized probability arrays
 - Consider chunked processing for multi-year simulations
