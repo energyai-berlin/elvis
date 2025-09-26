@@ -1,4 +1,5 @@
 .env
+.venv/
 .idea/
 .vscode/
 .history/
@@ -22,3 +23,31 @@ src/*.egg-info
 *.egg-info
 lib
 lib64
+.coverage
+
+# Python cache files
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Cache directories and build artifacts
+.mypy_cache/
+.hypothesis/
+.claude/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage.*
+coverage.xml
+
+# Additional Python cache patterns
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+*.egg-info/

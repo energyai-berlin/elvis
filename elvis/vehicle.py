@@ -1,11 +1,23 @@
 """Class representing vehicle types. Especially in regard of their battery."""
-from elvis.battery import EVBattery
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+from elvis.types import ConfigDict, Probability
+
+if TYPE_CHECKING:
+    from elvis.battery import EVBattery
 
 
 class ElectricVehicle:
     """Models the charging behaviour of a specific EV model."""
 
-    def __init__(self, brand: str, model: str, battery: EVBattery, probability):
+    def __init__(
+        self, brand: str, model: str, battery: EVBattery, probability: Probability
+    ) -> None:
+        from elvis.battery import EVBattery
+
         assert isinstance(battery, EVBattery)
         assert isinstance(probability, (float, int))
 
@@ -14,34 +26,34 @@ class ElectricVehicle:
         self.battery = battery
         self.probability = probability
 
-    def __str__(self):
-        printout = self.brand + ', ' + self.model
+    def __str__(self) -> str:
+        printout = self.brand + ", " + self.model
         return printout
 
-    def to_dict(self):
+    def to_dict(self) -> ConfigDict:
         dictionary = self.__dict__.copy()
-        dictionary['battery'] = self.battery.to_dict()
+        dictionary["battery"] = self.battery.to_dict()
         return dictionary
 
     @staticmethod
-    def from_dict(**kwargs):
-        """Initialise an instance of ChargingEvent with values stored in a dict.
+    def from_dict(**kwargs: Any) -> ElectricVehicle:
+        """Initialise an instance of ElectricVehicle with values stored in a dict.
 
         Args:
-
             **kwargs: Arbitrary keyword arguments.
         """
+        from elvis.battery import EVBattery
 
-        necessary_keys = ['brand', 'model', 'battery', 'probability']
+        necessary_keys = ["brand", "model", "battery", "probability"]
 
         for key in necessary_keys:
-            assert key in kwargs, 'Not all necessary keys are included to create a VehicleType ' \
-                                  'from dict.'
+            assert key in kwargs, (
+                "Not all necessary keys are included to create a VehicleType from dict."
+            )
 
-        brand = kwargs['brand']
-        model = kwargs['model']
-        probability = kwargs['probability']
-        battery = EVBattery.from_dict(**kwargs['battery'])
+        brand = kwargs["brand"]
+        model = kwargs["model"]
+        probability = kwargs["probability"]
+        battery = EVBattery.from_dict(**kwargs["battery"])
 
         return ElectricVehicle(brand, model, battery, probability)
-

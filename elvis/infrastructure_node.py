@@ -1,16 +1,19 @@
 """Super class for every node in the infrastructure network.
-TODO: Add node busbar."""
+TODO: Add node busbar.
+"""
 
-import networkx as nx
-import matplotlib.pyplot as plt
 from math import floor
+
+import matplotlib.pyplot as plt
+import networkx as nx
+
 from elvis.battery import StationaryBattery
 
 
 class InfrastructureNode:
     """Super class of all nodes (transformer, charging station, charging point)."""
-    def __init__(self, identification, min_power, max_power,
-                 parent=None):
+
+    def __init__(self, identification, min_power, max_power, parent=None):
         """Create an InfrastructureNode given all parameters.
 
         Args:
@@ -28,7 +31,6 @@ class InfrastructureNode:
                 - If parent is not an instance of :obj: `infrastructure_node.InfrastructureNode.
 
         """
-
         assert type(min_power) is int or type(min_power) is float
         assert type(max_power) is int or type(max_power) is float
 
@@ -100,6 +102,7 @@ class InfrastructureNode:
             for n in node.children:
                 n.leafs = n.get_leaf_nodes()
                 _set_up_leafs(n)
+
         _set_up_leafs(self)
 
     def get_transformer(self):
@@ -119,12 +122,13 @@ class InfrastructureNode:
 
 class Transformer(InfrastructureNode):
     """Represents a transformer. No usability besides having a max and min power.
-    Does not have a parent node in infrastructure."""
+    Does not have a parent node in infrastructure.
+    """
+
     counter = 1
 
     def __init__(self, min_power, max_power):
-
-        identification = 'Transformer_' + str(Transformer.counter)
+        identification = "Transformer_" + str(Transformer.counter)
         Transformer.counter += 1
 
         super().__init__(identification, min_power, max_power)
@@ -134,15 +138,15 @@ class Transformer(InfrastructureNode):
 
     def max_hardware_power(self, power_assigned, preload):
         """Calculate max power assignable to the transformer considering ints limits and already
-            assigned power.
+        assigned power.
 
-            Args:
-                power_assigned: (dict): Containing all :obj: `charging_point.ChargingPoint`
-                    in the infrastructure and their currently assigned power.
-                preload: (float): Preload at the transformer in kWh.
+        Args:
+            power_assigned: (dict): Containing all :obj: `charging_point.ChargingPoint`
+                in the infrastructure and their currently assigned power.
+            preload: (float): Preload at the transformer in kWh.
 
-            Returns:
-                max_power: (float): Max power that can be assigned to the transformer.
+        Returns:
+            max_power: (float): Max power that can be assigned to the transformer.
         """
         power_already_assigned = preload
         for leaf in self.leafs:
@@ -168,7 +172,7 @@ class Storage(InfrastructureNode):
         min_power = self.storage.min_charge_power
 
         # ID
-        identification = 'Storage_System ' + str(Storage.counter)
+        identification = "Storage_System " + str(Storage.counter)
         Storage.counter += 1
 
         super().__init__(identification, max_power, min_power, parent=transformer)

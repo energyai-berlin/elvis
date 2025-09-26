@@ -1,15 +1,16 @@
 """Wrapper class to have a more simplistic object than queue.WaitingQueue.
 
 TODO: Question: Is setting self.next_leave to year 9999 okay? Does the job but looks weird.
--> used to not have to check if len==0 or next_leave==None. see simulate.py, line: 89"""
+-> used to not have to check if len==0 or next_leave==None. see simulate.py, line: 89
+"""
 
 import datetime
 
 
 class WaitingQueue:
     """Represents the waiting queue for vehicles."""
-    def __init__(self, maxsize=0, arrivals=None):
 
+    def __init__(self, maxsize=0, arrivals=None):
         self.queue = []
         # initialise with large enough date
         self.next_leave = datetime.datetime(9999, 1, 1)

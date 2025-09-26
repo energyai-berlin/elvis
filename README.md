@@ -1,6 +1,6 @@
 
 
-<img src="https://i.imgur.com/CVM5RUD.png" alt="Elvis Logo" height="120px" 
+<img src="https://i.imgur.com/CVM5RUD.png" alt="Elvis Logo" height="120px"
 />
 
 # Electric Vehicle Charging Infrastructure Simulator (ELVIS)
@@ -12,7 +12,7 @@ To install the package simply run
 ```bash
 pip install py-elvis
 ```
-This installs the package locally using pip and installs required packages, if not available. 
+This installs the package locally using pip and installs required packages, if not available.
 
 ### Manually download and locally install the elvis package
 
@@ -21,7 +21,7 @@ This may be useful if you want to add changes to the package. Then download or c
 pip install -r requirements.txt
 python setup.py install
 ```
-This installs the package locally using pip and installs required packages, if not available. 
+This installs the package locally using pip and installs required packages, if not available.
 
 ## Usage
 
@@ -44,5 +44,3 @@ plt.plot(load_profile)
 ## Applications in the wild and acknowledgements
 
 ELVIS was developed at the [DAI-Laboratory](https://dai-labor.de/) supported in part by Stromnetz Berlin, as well as the Federal Minister for Environment, Nature Conservation and Nuclear Safety (BMU) through the research project [FlexNet4E-Mobility](
-
-

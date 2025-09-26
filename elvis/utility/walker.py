@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 
-from numpy import arange, array, bincount, ndarray, ones, where
-from numpy.random import seed, random, randint
-import numpy as np
 from collections import defaultdict
+
+from numpy import arange, array, bincount, ndarray, ones, where
+from numpy.random import randint, random, seed
 
 __author__ = "Tamas Nepusz, Denis Bzowy"
 __version__ = "27jul2011"
 
 
-class WalkerRandomSampling(object):
+class WalkerRandomSampling:
     """Walker's alias method for random objects with different probablities.
 
     Based on the implementation of Denis Bzowy at the following URL:
@@ -19,7 +19,8 @@ class WalkerRandomSampling(object):
     def __init__(self, weights, keys=None):
         """Builds the Walker tables ``prob`` and ``inx`` for calls to `random()`.
         The weights (a list or tuple or iterable) can be in any order and they
-        do not even have to sum to 1."""
+        do not even have to sum to 1.
+        """
         n = self.n = len(weights)
         if keys is None:
             self.keys = keys
@@ -47,7 +48,7 @@ class WalkerRandomSampling(object):
             k = long[-1]
 
             inx[j] = k
-            weights[k] -= (1 - weights[j])
+            weights[k] -= 1 - weights[j]
             if weights[k] < 1:
                 short.append(k)
                 long.pop()

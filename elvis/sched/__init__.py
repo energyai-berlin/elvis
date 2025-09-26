@@ -1,2 +1,8 @@
-
-__all__ = ["SchedulingPolicy", "Uncontrolled", "FCFS", "Optimized", "WithStorage", "DiscriminationFree"]
+__all__ = [
+    "FCFS",
+    "DiscriminationFree",
+    "Optimized",
+    "SchedulingPolicy",
+    "Uncontrolled",
+    "WithStorage",
+]

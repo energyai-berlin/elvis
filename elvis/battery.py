@@ -1,23 +1,59 @@
+"""Battery models for electric vehicles and stationary storage systems.
+
+This module provides type-safe implementations of battery models with
+proper validation, SOC management, and power degradation characteristics.
+"""
+
+from __future__ import annotations
+
+from datetime import timedelta
+from typing import Any
+
+from elvis.exceptions import (
+    InvalidParameterError,
+    InvalidSOCError,
+)
+from elvis.types import (
+    SOC,
+    ConfigDict,
+    Efficiency,
+    Energy,
+    Power,
+    ensure_positive,
+    ensure_probability,
+)
 from elvis.utility.elvis_general import floor
-from elvis.units import Energy
-from elvis.units import Power
 
 
 class Battery:
     """Models a generic battery."""
 
-    def __init__(self, capacity: Energy, max_charge_power: Power,
-                 min_charge_power: Power, efficiency: float, start_power_degradation: float=1,
-                 max_degradation_level: float=0):
+    def __init__(
+        self,
+        capacity: Energy,
+        max_charge_power: Power,
+        min_charge_power: Power,
+        efficiency: float,
+        start_power_degradation: float = 1.0,
+        max_degradation_level: float = 0.0,
+    ):
         """Create instance of Battery given all parameters."""
-        assert isinstance(capacity, (float, int)) and capacity > 0, \
-            'Battery capacity must be greater than 0'
+        assert isinstance(capacity, (float, int)) and capacity > 0, (
+            "Battery capacity must be greater than 0"
+        )
         assert isinstance(max_charge_power, (float, int))
         assert isinstance(min_charge_power, (float, int))
         assert isinstance(efficiency, (float, int)) and (0 <= efficiency <= 1)
-        assert isinstance(start_power_degradation, (float, int)) and (0 <= start_power_degradation <= 1)
+        assert isinstance(start_power_degradation, (float, int)) and (
+            0 <= start_power_degradation <= 1
+        )
         assert isinstance(max_degradation_level, (float, int)) and (0 <= max_degradation_level <= 1)
-        assert max_degradation_level * max_charge_power >= min_charge_power
+        # Ensure that even at maximum degradation, we can still provide minimum power
+        if min_charge_power > 0:
+            assert max_degradation_level * max_charge_power >= min_charge_power, (
+                f"max_degradation_level ({max_degradation_level}) * max_charge_power ({max_charge_power}) "
+                f"must be >= min_charge_power ({min_charge_power})"
+            )
 
         # battery capacity (kWh)
         self.capacity = capacity
@@ -39,11 +75,16 @@ class Battery:
         # max_power_possible * max_degradation_level
         self.max_degradation_level = max_degradation_level
 
-    def to_dict(self):
+    def __str__(self) -> str:
+        """String representation of the battery."""
+        return f"Battery({self.capacity} kWh, {self.max_charge_power} kW, eff={self.efficiency})"
+
+    def to_dict(self) -> ConfigDict:
+        """Convert battery to dictionary representation."""
         dictionary = self.__dict__.copy()
         return dictionary
 
-    def max_power_possible(self, current_soc):
+    def max_power_possible(self, current_soc: SOC) -> Power:
         """Return the max power that can be assigned to the battery in regard of the current
             SOC.
             As of implementation right now return power assignable to the car:
@@ -57,16 +98,19 @@ class Battery:
 
         """
         if current_soc > self.start_power_degradation:
-            power_degradation = (current_soc - self.start_power_degradation) / \
-                                (1-self.start_power_degradation) * \
-                                 self.max_charge_power * (1 - self.max_degradation_level)
+            power_degradation = (
+                (current_soc - self.start_power_degradation)
+                / (1 - self.start_power_degradation)
+                * self.max_charge_power
+                * (1 - self.max_degradation_level)
+            )
 
             max_power_possible = self.max_charge_power - power_degradation
             return max_power_possible
 
         return self.max_charge_power
 
-    def min_power_possible(self, current_soc):
+    def min_power_possible(self, current_soc: SOC) -> Power:
         """Return the min power that can be assigned to the battery in regard of the current
         SOC.
 
@@ -76,75 +120,255 @@ class Battery:
         Return:
             max_power_possible: (float): Max assignable power.
 
-        TODO: Implement SOC dependence."""
-
-        return self.min_charge_power
-
-    @staticmethod
-    def from_dict(**kwargs):
-        """Initialise an instance of ChargingEvent with values stored in a dict.
-
-        Args:
-
-            **kwargs: Arbitrary keyword arguments.
+        TODO: Implement SOC dependence.
         """
-
-        necessary_keys = ['capacity', 'max_charge_power', 'min_charge_power', 'efficiency']
-
-        for key in necessary_keys:
-            assert key in kwargs, 'Not all necessary keys are included to create an EVBattery ' \
-                                  'from dict. Missing: ' + key
-
-        capacity = kwargs['capacity']
-        max_charge_power = kwargs['max_charge_power']
-        min_charge_power = kwargs['min_charge_power']
-
-        efficiency = kwargs['efficiency']
-
-        if 'start_power_degradation' and 'max_degradation_level' in kwargs:
-            start_power_degradation = kwargs['start_power_degradation']
-            max_degradation_level = kwargs['max_degradation_level']
-
-            return EVBattery(capacity, max_charge_power, min_charge_power, efficiency,
-                             start_power_degradation, max_degradation_level)
-
-        return EVBattery(capacity, max_charge_power, min_charge_power, efficiency)
+        return self.min_charge_power
 
 
 class EVBattery(Battery):
-    """Models an electric vehicle battery."""
+    """Models an electric vehicle battery.
 
-    def __init__(self, *args, **kwargs):
-        super(EVBattery, self).__init__(*args, **kwargs)
+    Type-safe implementation of an EV battery with validation
+    and proper error handling.
+    """
+
+    def __init__(
+        self,
+        capacity: Energy,
+        max_charge_power: Power,
+        min_charge_power: Power,
+        efficiency: Efficiency,
+        start_power_degradation: float = 1.0,
+        max_degradation_level: float = 0.0,
+        **kwargs: Any,
+    ) -> None:
+        """Initialize EV battery with type validation.
+
+        Args:
+            capacity: Battery capacity in kWh
+            max_charge_power: Maximum charging power in kW
+            min_charge_power: Minimum charging power in kW
+            efficiency: Charging efficiency [0,1]
+            start_power_degradation: SOC level where power degradation starts
+            max_degradation_level: Maximum power degradation level
+
+        Raises:
+            InvalidParameterError: If parameters are invalid
+            BatteryCapacityError: If capacity is invalid
+        """
+        try:
+            capacity = ensure_positive(capacity, "capacity")
+            max_charge_power = ensure_positive(max_charge_power, "max_charge_power")
+            efficiency = ensure_probability(efficiency, "efficiency")
+            start_power_degradation = ensure_probability(
+                start_power_degradation, "start_power_degradation"
+            )
+            max_degradation_level = ensure_probability(
+                max_degradation_level, "max_degradation_level"
+            )
+
+            if min_charge_power < 0:
+                raise InvalidParameterError(
+                    "min_charge_power", min_charge_power, "must be non-negative"
+                )
+
+        except (ValueError, TypeError) as e:
+            raise InvalidParameterError("battery_parameter", str(e), "validation failed") from e
+
+        super().__init__(
+            capacity,
+            max_charge_power,
+            min_charge_power,
+            efficiency,
+            start_power_degradation,
+            max_degradation_level,
+        )
+
+    def __str__(self) -> str:
+        """String representation of the EV battery."""
+        return f"EVBattery({self.capacity} kWh, {self.max_charge_power} kW, eff={self.efficiency})"
+
+    def energy_for_soc_change(self, current_soc: SOC, target_soc: SOC) -> Energy:
+        """Calculate energy needed/released for SOC change.
+
+        Args:
+            current_soc: Current state of charge [0,1]
+            target_soc: Target state of charge [0,1]
+
+        Returns:
+            Energy in kWh (positive for charging, negative for discharging)
+
+        Raises:
+            InvalidSOCError: If SOC values are outside valid range
+        """
+        # Validate SOC values
+        if not (0 <= current_soc <= 1):
+            raise InvalidSOCError(current_soc)
+        if not (0 <= target_soc <= 1):
+            raise InvalidSOCError(target_soc)
+
+        soc_change = target_soc - current_soc
+        energy_change = soc_change * self.capacity
+
+        # Account for efficiency when charging (positive energy change)
+        if energy_change > 0:  # Charging
+            energy_change = energy_change / self.efficiency
+
+        return energy_change
+
+    def time_for_soc_change(
+        self, current_soc: SOC, target_soc: SOC, charge_power: Power
+    ) -> timedelta:
+        """Calculate time needed for SOC change at given power.
+
+        Args:
+            current_soc: Current state of charge [0,1]
+            target_soc: Target state of charge [0,1]
+            charge_power: Charging power in kW
+
+        Returns:
+            Time as timedelta object
+
+        Raises:
+            InvalidSOCError: If SOC values are outside valid range
+            InvalidParameterError: If charge_power is zero or negative
+        """
+        if charge_power <= 0:
+            raise InvalidParameterError("charge_power", charge_power, "must be positive")
+
+        energy_needed = self.energy_for_soc_change(current_soc, target_soc)
+        # energy_for_soc_change already accounts for efficiency
+
+        time_hours = abs(energy_needed) / charge_power
+        return timedelta(hours=time_hours)
+
+    def max_power_at_soc(self, soc: SOC) -> Power:
+        """Get maximum power available at specific SOC.
+
+        Alias for max_power_possible() for test compatibility.
+
+        Args:
+            soc: State of charge [0,1]
+
+        Returns:
+            Maximum power available at this SOC
+        """
+        return self.max_power_possible(soc)
+
+    def clamp_power(self, power: Power) -> Power:
+        """Clamp power value to battery's min/max limits.
+
+        Args:
+            power: Power value to clamp
+
+        Returns:
+            Clamped power value within battery limits
+        """
+        return max(self.min_charge_power, min(power, self.max_charge_power))
+
+    @classmethod
+    def from_dict(cls, data: ConfigDict = None, **kwargs: Any) -> EVBattery:
+        """Create EVBattery from dictionary.
+
+        Args:
+            data: Dictionary containing battery parameters
+            **kwargs: Additional keyword arguments
+
+        Returns:
+            EVBattery instance
+
+        Raises:
+            KeyError: If required parameters are missing
+            InvalidParameterError: If parameters are invalid
+        """
+        # Support both dict parameter and kwargs
+        if data is not None:
+            kwargs.update(data)
+
+        necessary_keys = ["capacity", "max_charge_power", "min_charge_power", "efficiency"]
+
+        for key in necessary_keys:
+            if key not in kwargs:
+                raise KeyError(f"Required parameter '{key}' missing for EVBattery creation")
+
+        capacity = kwargs["capacity"]
+        max_charge_power = kwargs["max_charge_power"]
+        min_charge_power = kwargs["min_charge_power"]
+        efficiency = kwargs["efficiency"]
+
+        # Optional parameters with defaults
+        start_power_degradation = kwargs.get("start_power_degradation", 1.0)
+        # Set default max_degradation_level to ensure constraint is satisfied
+        if "max_degradation_level" in kwargs:
+            max_degradation_level = kwargs["max_degradation_level"]
+        # Calculate minimum viable degradation level to satisfy constraint
+        elif min_charge_power > 0 and max_charge_power > 0:
+            min_degradation_level = min_charge_power / max_charge_power
+            max_degradation_level = max(0.1, min_degradation_level)
+        else:
+            max_degradation_level = 0.0
+
+        return cls(
+            capacity,
+            max_charge_power,
+            min_charge_power,
+            efficiency,
+            start_power_degradation,
+            max_degradation_level,
+        )
 
 
 class StationaryBattery(Battery):
-    """Models a stationary vehicle battery."""
+    """Models a stationary battery storage system.
 
-    def __init__(self, *args, **kwargs):
+    Extended battery model with SOC tracking, charge/discharge
+    operations, and state management for grid-connected storage.
+    """
 
-        keys = kwargs.keys()
+    def __init__(
+        self,
+        capacity: Energy,
+        max_charge_power: Power,
+        min_charge_power: Power,
+        efficiency: Efficiency,
+        initial_soc: SOC = 0.0,
+        min_soc: SOC = 0.0,
+        **kwargs: Any,
+    ) -> None:
+        """Initialize stationary battery with state tracking.
 
-        if 'initial_soc' in keys:
-            assert isinstance(kwargs['initial_soc'], (int, float)), 'Initial SOC must be numeric.'
-            assert 0 <= kwargs['initial_soc'] <= 1, 'Initial SOC must be in between 0 and 1'
-            self.soc = kwargs['initial_soc']
-        else:
-            self.soc = 0
+        Args:
+            capacity: Battery capacity in kWh
+            max_charge_power: Maximum charging power in kW
+            min_charge_power: Minimum charging power in kW
+            efficiency: Charging efficiency [0,1]
+            initial_soc: Initial state of charge [0,1]
+            min_soc: Minimum allowed state of charge [0,1]
 
-        if 'min_soc' in keys:
-            assert isinstance(kwargs['min_soc'], (int, float)), 'Min SOC must be numeric.'
-            assert 0 <= kwargs['min_soc'] <= 1, 'Min SOC must be in between 0 and 1'
-            self.min_soc = kwargs['min_soc']
-        else:
-            self.min_soc = 0
+        Raises:
+            InvalidSOCError: If SOC values are invalid
+            InvalidParameterError: If other parameters are invalid
+        """
+        # Validate SOC parameters
+        try:
+            initial_soc = ensure_probability(initial_soc, "initial_soc")
+            min_soc = ensure_probability(min_soc, "min_soc")
+        except ValueError as e:
+            raise InvalidSOCError(float(e.args[0].split()[-1])) from e
 
-        self.power = 0
-        self.soc_time = []
+        if min_soc > initial_soc:
+            raise InvalidParameterError(
+                "min_soc", min_soc, f"cannot be greater than initial_soc ({initial_soc})"
+            )
 
-        super(StationaryBattery, self).__init__(*args, **kwargs)
+        self.soc: SOC = initial_soc
+        self.min_soc: SOC = min_soc
+        self.power: Power = 0.0
+        self.soc_time: list[SOC] = []
 
-    def max_discharge_power(self, cur_ass_power, step_length):
+        super().__init__(capacity, max_charge_power, min_charge_power, efficiency, **kwargs)
+
+    def max_discharge_power(self, cur_ass_power: Power, step_length: timedelta) -> Power:
         """Calculates the max power possible to discharge the storage system regarding its power
             limits and its current energy level.
 
@@ -156,18 +380,19 @@ class StationaryBattery(Battery):
         Returns:
             max_power: (float): Max power possible to discharge the storage system with.
 
-        TODO:
+        Todo:
             - integrate efficiencies
         """
-        assert isinstance(cur_ass_power, (float, int)), 'Currently assigned power should be numeric'
+        assert isinstance(cur_ass_power, (float, int)), "Currently assigned power should be numeric"
         # Max power based on already assigned power and what is theoretically possible to discharge
         max_power_theo = self.max_charge_power - cur_ass_power
 
         # Power that leads to SOC = min_soc at the end of time step
         step_length_hours = step_length.total_seconds() / 3600
         soc_cur_ass_power = cur_ass_power / self.capacity * step_length_hours
-        power_to_empty = (self.soc - soc_cur_ass_power - self.min_soc) * \
-                         self.capacity / step_length_hours
+        power_to_empty = (
+            (self.soc - soc_cur_ass_power - self.min_soc) * self.capacity / step_length_hours
+        )
 
         # Max power possible based on energy level and power limits
         max_power = max(min(max_power_theo, power_to_empty), 0)
@@ -175,9 +400,8 @@ class StationaryBattery(Battery):
         max_power = floor(max_power)
         return max_power
 
-    def charge(self, available_power, step_length):
-        """
-        Charges the battery with a given power or with whatever is possible considering its
+    def charge(self, available_power: Power, step_length: timedelta) -> Power:
+        """Charges the battery with a given power or with whatever is possible considering its
             power limits and its current energy level.
 
         Args:
@@ -188,11 +412,11 @@ class StationaryBattery(Battery):
         Returns:
             power_charged: The power the battery was actually charged with.
 
-        TODO:
+        Todo:
             - integrate efficiencies
         """
-        assert isinstance(available_power, (float, int)), 'Available power should be numeric'
-        assert available_power >= 0, 'The max charge power must be >= 0.'
+        assert isinstance(available_power, (float, int)), "Available power should be numeric"
+        assert available_power >= 0, "The max charge power must be >= 0."
         # Power needed to charge to SOC = 1 at the end of time step
         step_length_hours = step_length.total_seconds() / 3600
         max_power_to_full = (1 - self.soc) * self.capacity / step_length_hours
@@ -209,9 +433,8 @@ class StationaryBattery(Battery):
         self.soc_time.append(self.soc)
         return power_charged
 
-    def discharge(self, power_to_discharge, step_length):
-        """
-        Tries to discharge the battery with given power. If either the power limits or the limit
+    def discharge(self, power_to_discharge: Power, step_length: timedelta) -> None:
+        """Tries to discharge the battery with given power. If either the power limits or the limit
             due to the current energy level is violated a ValueError will be raised.
 
         Args:
@@ -220,19 +443,20 @@ class StationaryBattery(Battery):
             step_length: (:obj: `datetime.timedelta`): Resolution of the simulation denoting the
                 time in between two adjacent time steps.
 
-        TODO:
+        Todo:
             - integrate efficiencies
-            """
-        assert isinstance(power_to_discharge,(float, int)), 'Currently assigned power ' \
-                                                            'should be numeric'
-        assert power_to_discharge >= 0, 'The max charge power must be >= 0.'
+        """
+        assert isinstance(power_to_discharge, (float, int)), (
+            "Currently assigned power should be numeric"
+        )
+        assert power_to_discharge >= 0, "The max charge power must be >= 0."
 
         # Max power too discharge with at current SOC
         max_discharge_power = self.max_discharge_power(0, step_length)
 
         if max_discharge_power < power_to_discharge:
-            raise ValueError('Power to discharge with is out of the limits.')
-        self.power = - power_to_discharge
+            raise ValueError("Power to discharge with is out of the limits.")
+        self.power = -power_to_discharge
 
         # SOC change given the power to discharge with
         step_length_hours = step_length.total_seconds() / 3600
@@ -241,7 +465,6 @@ class StationaryBattery(Battery):
         # Make sure SOC is within limits
         self.check_soc()
         self.soc_time.append(self.soc)
-        return
 
-    def check_soc(self):
-        assert 0 <= self.soc <= 1, 'SOC is out of limits.'
+    def check_soc(self) -> None:
+        assert 0 <= self.soc <= 1, "SOC is out of limits."
