@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 import yaml
 
+from elvis.set_up_infrastructure import wallbox_infrastructure
 from elvis.types import (
     ArrivalDistribution,
     ConfigDict,
@@ -287,6 +288,138 @@ class ScenarioConfig(InfrastructureMixin, VehicleMixin, SchedulingMixin, TimeMix
         )
 
         return ScenarioConfig.from_dict(yaml_str)
+
+    @classmethod
+    def office_scenario(cls, **overrides: Any) -> ScenarioConfig:
+        """Create office scenario with customizable parameters.
+        
+        Args:
+            **overrides: Any parameter can be overridden from the default office configuration.
+            
+        Returns:
+            ScenarioConfig: Configured office scenario.
+            
+        Example:
+            # Use defaults
+            config = ScenarioConfig.office_scenario()
+            
+            # Override specific parameters
+            config = ScenarioConfig.office_scenario(
+                num_charging_events=500,
+                scheduling_policy="WithStorage",
+                vehicle_types=custom_vehicles
+            )
+        """
+        defaults = cls._load_scenario_config("office.yaml")
+        defaults.update(overrides)
+        return cls.from_dict(defaults)
+    
+    @classmethod
+    def residential_scenario(cls, **overrides: Any) -> ScenarioConfig:
+        """Create residential scenario with customizable parameters.
+        
+        Args:
+            **overrides: Any parameter can be overridden from the default residential configuration.
+            
+        Returns:
+            ScenarioConfig: Configured residential scenario.
+        """
+        defaults = cls._load_scenario_config("residential.yaml")
+        defaults.update(overrides)
+        return cls.from_dict(defaults)
+    
+    @classmethod
+    def wohnblock_scenario(cls, **overrides: Any) -> ScenarioConfig:
+        """Create wohnblock (apartment block) scenario with customizable parameters.
+        
+        Args:
+            **overrides: Any parameter can be overridden from the default wohnblock configuration.
+            
+        Returns:
+            ScenarioConfig: Configured wohnblock scenario.
+        """
+        defaults = cls._load_scenario_config("wohnblock.yaml")
+        defaults.update(overrides)
+        return cls.from_dict(defaults)
+    
+    @classmethod
+    def cabstand_scenario(cls, **overrides: Any) -> ScenarioConfig:
+        """Create cabstand scenario with customizable parameters."""
+        defaults = cls._load_scenario_config("cabstand.yaml")
+        defaults.update(overrides)
+        return cls.from_dict(defaults)
+    
+    @classmethod
+    def customer_parking_day_scenario(cls, **overrides: Any) -> ScenarioConfig:
+        """Create customer parking day scenario with customizable parameters."""
+        defaults = cls._load_scenario_config("customer_parking_day.yaml")
+        defaults.update(overrides)
+        return cls.from_dict(defaults)
+    
+    @classmethod
+    def customer_parking_night_scenario(cls, **overrides: Any) -> ScenarioConfig:
+        """Create customer parking night scenario with customizable parameters."""
+        defaults = cls._load_scenario_config("customer_parking_night.yaml")
+        defaults.update(overrides)
+        return cls.from_dict(defaults)
+    
+    @classmethod
+    def gasstation_speedway_scenario(cls, **overrides: Any) -> ScenarioConfig:
+        """Create gas station speedway scenario with customizable parameters."""
+        defaults = cls._load_scenario_config("gasstation_speedway.yaml")
+        defaults.update(overrides)
+        return cls.from_dict(defaults)
+    
+    @classmethod
+    def kundenparkplatz_scenario(cls, **overrides: Any) -> ScenarioConfig:
+        """Create kundenparkplatz (customer parking) scenario with customizable parameters."""
+        defaults = cls._load_scenario_config("kundenparkplatz.yaml")
+        defaults.update(overrides)
+        return cls.from_dict(defaults)
+    
+    @classmethod
+    def office_fleet_scenario(cls, **overrides: Any) -> ScenarioConfig:
+        """Create office fleet scenario with customizable parameters."""
+        defaults = cls._load_scenario_config("office_fleet.yaml")
+        defaults.update(overrides)
+        return cls.from_dict(defaults)
+    
+    @classmethod
+    def pnr_scenario(cls, **overrides: Any) -> ScenarioConfig:
+        """Create Park & Ride scenario with customizable parameters."""
+        defaults = cls._load_scenario_config("PnR.yaml")
+        defaults.update(overrides)
+        return cls.from_dict(defaults)
+    
+    @classmethod
+    def roadside_scenario(cls, **overrides: Any) -> ScenarioConfig:
+        """Create roadside scenario with customizable parameters."""
+        defaults = cls._load_scenario_config("roadside.yaml")
+        defaults.update(overrides)
+        return cls.from_dict(defaults)
+    
+    @classmethod
+    def tankstelle_city_scenario(cls, **overrides: Any) -> ScenarioConfig:
+        """Create tankstelle city scenario with customizable parameters."""
+        defaults = cls._load_scenario_config("tankstelle_city.yaml")
+        defaults.update(overrides)
+        return cls.from_dict(defaults)
+    
+    @classmethod
+    def _load_scenario_config(cls, filename: str) -> ConfigDict:
+        """Load scenario configuration from YAML file.
+        
+        Args:
+            filename: Name of the YAML file in data/config_builder/
+            
+        Returns:
+            ConfigDict: Loaded configuration dictionary.
+        """
+        import pathlib
+        import yaml
+        config_path = pathlib.Path(__file__).parent.parent.parent / "data" / "config_builder" / filename
+        with open(config_path, 'r') as f:
+            return yaml.safe_load(f)
 
     def create_realisation(self, start_date, end_date, resolution):
         """Creates a realisation of self given the required time parameters.

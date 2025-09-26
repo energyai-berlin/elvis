@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
-"""Test script to run all scenario configurations from data/config_builder/ directory.
+"""Test script to run all scenario configurations using factory methods.
 
-This validates that our Phase 2 changes (enums, validation, exception handling)
-work correctly with all real-world scenario configurations.
+This validates that our factory methods work correctly with all predefined scenarios
+and that different scheduling policies produce different results.
 """
 
 import sys
 import traceback
 from pathlib import Path
-from typing import Any
-
-import yaml
+from typing import Any, Callable
 
 # Add project root to Python path
 project_root = Path(__file__).parent
@@ -21,16 +19,28 @@ from elvis.simulate import simulate
 from elvis.enums import SchedulingPolicyType
 
 
-def load_scenario_config(yaml_path: str) -> dict[str, Any]:
-    """Load scenario configuration from YAML file."""
-    with open(yaml_path) as f:
-        return yaml.safe_load(f)
+def get_scenario_factory_methods() -> dict[str, Callable]:
+    """Get all available scenario factory methods."""
+    return {
+        "office": ScenarioConfig.office_scenario,
+        "residential": ScenarioConfig.residential_scenario,
+        "wohnblock": ScenarioConfig.wohnblock_scenario,
+        "cabstand": ScenarioConfig.cabstand_scenario,
+        "customer_parking_day": ScenarioConfig.customer_parking_day_scenario,
+        "customer_parking_night": ScenarioConfig.customer_parking_night_scenario,
+        "gasstation_speedway": ScenarioConfig.gasstation_speedway_scenario,
+        "kundenparkplatz": ScenarioConfig.kundenparkplatz_scenario,
+        "office_fleet": ScenarioConfig.office_fleet_scenario,
+        "pnr": ScenarioConfig.pnr_scenario,
+        "roadside": ScenarioConfig.roadside_scenario,
+        "tankstelle_city": ScenarioConfig.tankstelle_city_scenario,
+    }
 
 
 def run_scenario_test(
-    scenario_name: str, config_path: str, policy_type: SchedulingPolicyType = None
+    scenario_name: str, factory_method: Callable, policy_type: SchedulingPolicyType = None
 ) -> dict[str, Any]:
-    """Run a single scenario test and return results."""
+    """Run a single scenario test using factory method and return results."""
     policy_suffix = f"_{policy_type.value}" if policy_type else ""
     test_name = f"{scenario_name}{policy_suffix}"
     result = {"scenario": test_name, "status": "UNKNOWN", "error": None, "details": {}}
@@ -40,49 +50,40 @@ def run_scenario_test(
         print(f"Testing scenario: {scenario_name}")
         if policy_type:
             print(f"Policy: {policy_type.value}")
-        print(f"Config file: {config_path}")
+        print(f"Factory method: {factory_method.__name__}")
         print(f"{'=' * 60}")
 
-        # 1. Load YAML configuration
-        print("1. Loading YAML configuration...")
-        yaml_data = load_scenario_config(config_path)
-        print("   ✅ YAML loaded successfully")
+        # 1. Create ScenarioConfig using factory method
+        print("1. Creating ScenarioConfig using factory method...")
+        
+        # Create config with policy override if specified
+        if policy_type:
+            config = factory_method(scheduling_policy=policy_type.value)
+        else:
+            config = factory_method()
+        
+        print("   ✅ ScenarioConfig created successfully using factory method")
 
-        # 2. Check if this is a complete scenario (skip incomplete/template configs)
+        # 2. Validate configuration completeness  
         print("2. Validating scenario completeness...")
-        required_keys = ["arrival_distribution", "vehicle_types", "infrastructure"]
-        missing_keys = []
-        for key in required_keys:
-            if key not in yaml_data and "charging_events" not in yaml_data:
-                missing_keys.append(key)
-
-        if missing_keys and "charging_events" not in yaml_data:
+        if not config.vehicle_types or not config.infrastructure:
             result.update(
                 {
-                    "status": "SKIPPED",
-                    "error": f"Incomplete scenario config - missing: {', '.join(missing_keys)}",
+                    "status": "SKIPPED", 
+                    "error": "Incomplete scenario config from factory method",
                 }
             )
-            print(f"   ⏭️  SKIPPED: Incomplete config - missing {', '.join(missing_keys)}")
+            print("   ⏭️  SKIPPED: Incomplete config from factory")
             return result
 
-        # 3. Create ScenarioConfig from YAML (tests our enum/validation systems)
-        print("3. Creating ScenarioConfig from YAML...")
-        config = ScenarioConfig.from_yaml(yaml_data)
-
-        # Override scheduling policy if specified
-        if policy_type:
-            config.with_scheduling_policy(policy_type)
-
-        print("   ✅ ScenarioConfig created successfully")
         print(f"   📊 Scheduling policy: {config.scheduling_policy}")
         print(f"   📊 Number of charging events: {config.num_charging_events}")
         print(
             f"   📊 Vehicle types count: {len(config.vehicle_types) if config.vehicle_types else 0}"
         )
 
-        # 4. Create realisation for short simulation period
-        print("4. Creating scenario realisation...")
+        # 3. Create realisation for short simulation period  
+        print("3. Creating scenario realisation...")
         start_date = "2025-01-01 00:00:00"
         end_date = "2025-12-31 23:00:00"
         resolution = "01:00:00"
@@ -93,13 +94,13 @@ def run_scenario_test(
             f"   📊 Charging events generated: {len(realisation.charging_events) if realisation.charging_events else 0}"
         )
 
-        # 5. Run short simulation
-        print("5. Running simulation...")
+        # 4. Run short simulation
+        print("4. Running simulation...")
         simulation_results = simulate(realisation)
         print("   ✅ Simulation completed successfully")
 
-        # 6. Set up results properly and extract basic metrics
-        print("6. Calculating basic metrics...")
+        # 5. Set up results properly and extract basic metrics
+        print("5. Calculating basic metrics...")
         simulation_results.scenario = realisation  # Set scenario for result calculations
 
         # Calculate number of simulation steps
@@ -145,17 +146,19 @@ def run_scenario_test(
 
 
 def main():
-    """Main test function that runs all scenario configurations with multiple scheduling policies."""
-    print("🚀 ELVIS Multi-Policy Scenario Validation Test")
-    print("Testing all configurations in data/config_builder/ with multiple scheduling policies")
-    print("This validates our scheduling policy implementations and compares their performance")
+    """Main test function that runs all scenario factory methods with multiple scheduling policies."""
+    print("🚀 ELVIS Factory Method Multi-Policy Validation Test")
+    print("Testing all factory methods with multiple scheduling policies")
+    print("This validates our factory methods and compares scheduling policy performance")
+    print("\n💡 Factory methods allow easy customization:")
+    print("   config = ScenarioConfig.office_scenario(scheduling_policy='FCFS', num_charging_events=500)")
+    print("   config = ScenarioConfig.residential_scenario(vehicle_types=custom_fleet)")
 
-    # Find all YAML files in config_builder directory
-    config_dir = project_root / "data" / "config_builder"
-    yaml_files = list(config_dir.glob("*.yaml"))
+    # Get all available factory methods
+    factory_methods = get_scenario_factory_methods()
 
-    if not yaml_files:
-        print("❌ No YAML files found in data/config_builder/")
+    if not factory_methods:
+        print("❌ No factory methods found")
         return False
 
     # Define policies to test (only implemented ones)
@@ -171,9 +174,9 @@ def main():
         SchedulingPolicyType.OPTIMIZED,
     ]
 
-    print(f"\n📁 Found {len(yaml_files)} scenario configurations:")
-    for yaml_file in sorted(yaml_files):
-        print(f"   - {yaml_file.name}")
+    print(f"\n🏭 Found {len(factory_methods)} scenario factory methods:")
+    for scenario_name in sorted(factory_methods.keys()):
+        print(f"   - {scenario_name}_scenario()")
 
     print(f"\n🔄 Will test {len(implemented_policies)} scheduling policies:")
     for policy in implemented_policies:
@@ -186,10 +189,9 @@ def main():
     # Run tests for all scenarios and all implemented policies
     all_results: list[dict[str, Any]] = []
 
-    for yaml_file in sorted(yaml_files):
-        scenario_name = yaml_file.stem
+    for scenario_name, factory_method in sorted(factory_methods.items()):
         for policy_type in implemented_policies:
-            result = run_scenario_test(scenario_name, str(yaml_file), policy_type)
+            result = run_scenario_test(scenario_name, factory_method, policy_type)
             all_results.append(result)
 
     # Summary report
