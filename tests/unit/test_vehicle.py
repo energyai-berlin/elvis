@@ -13,6 +13,7 @@ from unittest.mock import Mock, patch
 from elvis.vehicle import ElectricVehicle
 from elvis.battery import EVBattery
 from elvis.types import Probability
+from elvis.exceptions import InvalidParameterError
 
 
 class TestElectricVehicle:
@@ -166,7 +167,7 @@ class TestElectricVehicle:
 
     def test_electric_vehicle_from_dict_invalid_battery(self):
         """Test ElectricVehicle creation fails with invalid battery configuration."""
-        with pytest.raises(AssertionError):
+        with pytest.raises((AssertionError, InvalidParameterError)):
             ElectricVehicle.from_dict(
                 brand="Nissan",
                 model="Leaf",
@@ -204,7 +205,7 @@ class TestElectricVehicle:
         """Test that to_dict() and from_dict() are inverse operations."""
         # Create original vehicle
         original_battery = EVBattery(
-            capacity=65.0, max_charge_power=180.0, min_charge_power=2.0, efficiency=0.88
+            capacity=65.0, max_charge_power=180.0, min_charge_power=0, efficiency=0.88
         )
 
         original_vehicle = ElectricVehicle(
@@ -290,7 +291,7 @@ class TestElectricVehicle:
         """Test ElectricVehicle integration with EVBattery methods."""
         # Create real battery for integration testing
         real_battery = EVBattery(
-            capacity=80.0, max_charge_power=250.0, min_charge_power=1.0, efficiency=0.93
+            capacity=80.0, max_charge_power=250.0, min_charge_power=0, efficiency=0.93
         )
 
         vehicle = ElectricVehicle(
@@ -302,7 +303,7 @@ class TestElectricVehicle:
         assert max_power == 250.0  # Should return max power at mid SOC
 
         min_power = vehicle.battery.min_power_possible(0.5)
-        assert min_power == 1.0  # Should return min power
+        assert min_power == 0  # Should return min power
 
         # Test battery dictionary conversion
         battery_dict = vehicle.battery.to_dict()

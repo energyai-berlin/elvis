@@ -19,7 +19,9 @@ from elvis.exceptions import (
 from elvis.types import ArrivalDistribution
 
 if TYPE_CHECKING:
-    from elvis._config_legacy import ScenarioConfig
+    from typing import Any
+
+    ScenarioConfig = Any  # Avoid circular import
 
 logger = logging.getLogger(__name__)
 
@@ -187,7 +189,8 @@ class ConfigValidator:
         total_prob = sum(distribution)
         if abs(total_prob - 1.0) > 1e-6:
             logger.warning(
-                f"Arrival distribution probabilities sum to {total_prob}, expected sum close to 1.0"
+                f"Arrival distribution probabilities sum to {total_prob}, expected sum close to 1.0. "
+                f"The distribution will be normalized during simulation."
             )
 
         return distribution

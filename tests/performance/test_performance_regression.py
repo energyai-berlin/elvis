@@ -24,7 +24,7 @@ from elvis.simulate import simulate
 from elvis.battery import EVBattery
 from elvis.vehicle import ElectricVehicle
 from elvis.distribution import NormalDistribution, InterpolatedDistribution
-from elvis._config_legacy import ScenarioRealisation
+from elvis.config import ScenarioRealisation
 
 
 class PerformanceMonitor:

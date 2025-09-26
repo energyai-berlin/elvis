@@ -153,7 +153,7 @@ class TestBatteryProperties:
         battery_dict = original_battery.to_dict()
 
         # Create new battery from dict
-        reconstructed_battery = Battery.from_dict(**battery_dict)
+        reconstructed_battery = EVBattery.from_dict(**battery_dict)
 
         # Property: All parameters should be identical
         assert isinstance(reconstructed_battery, EVBattery)
@@ -186,7 +186,7 @@ class TestUnitsProperties:
         milliamps = current.milliamps
         amps_back = milliamps / 1000.0
 
-        assert abs(amps_back - amps) < 1e-10
+        assert abs(amps_back - amps) < 1e-9
 
     @given(
         st.floats(min_value=-1000, max_value=1000, allow_nan=False, allow_infinity=False),

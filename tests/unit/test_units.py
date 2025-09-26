@@ -339,10 +339,10 @@ class TestUnitsIntegration:
         """Test that unit conversions maintain precision."""
         # High precision values
         precise_power = Power(1234.56789)
-        assert precise_power.kilowatts == 1.23456789
+        assert abs(precise_power.kilowatts - 1.23456789) < 1e-10
 
         precise_current = Current(12.3456)
-        assert precise_current.milliamps == 12345.6
+        assert abs(precise_current.milliamps - 12345.6) < 1e-10
 
         precise_charge = Charge(98.7654321)
         precise_energy = precise_charge.energy(123.456)

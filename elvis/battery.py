@@ -34,8 +34,8 @@ class Battery:
         max_charge_power: Power,
         min_charge_power: Power,
         efficiency: float,
-        start_power_degradation: float = 1,
-        max_degradation_level: float = 0,
+        start_power_degradation: float = 1.0,
+        max_degradation_level: float = 0.0,
     ):
         """Create instance of Battery given all parameters."""
         assert isinstance(capacity, (float, int)) and capacity > 0, (
@@ -48,7 +48,12 @@ class Battery:
             0 <= start_power_degradation <= 1
         )
         assert isinstance(max_degradation_level, (float, int)) and (0 <= max_degradation_level <= 1)
-        assert max_degradation_level * max_charge_power >= min_charge_power
+        # Ensure that even at maximum degradation, we can still provide minimum power
+        if min_charge_power > 0:
+            assert max_degradation_level * max_charge_power >= min_charge_power, (
+                f"max_degradation_level ({max_degradation_level}) * max_charge_power ({max_charge_power}) "
+                f"must be >= min_charge_power ({min_charge_power})"
+            )
 
         # battery capacity (kWh)
         self.capacity = capacity
@@ -70,7 +75,12 @@ class Battery:
         # max_power_possible * max_degradation_level
         self.max_degradation_level = max_degradation_level
 
+    def __str__(self) -> str:
+        """String representation of the battery."""
+        return f"Battery({self.capacity} kWh, {self.max_charge_power} kW, eff={self.efficiency})"
+
     def to_dict(self) -> ConfigDict:
+        """Convert battery to dictionary representation."""
         dictionary = self.__dict__.copy()
         return dictionary
 
@@ -113,42 +123,6 @@ class Battery:
         TODO: Implement SOC dependence.
         """
         return self.min_charge_power
-
-    @staticmethod
-    def from_dict(**kwargs: Any) -> EVBattery:
-        """Initialise an instance of ChargingEvent with values stored in a dict.
-
-        Args:
-            **kwargs: Arbitrary keyword arguments.
-        """
-        necessary_keys = ["capacity", "max_charge_power", "min_charge_power", "efficiency"]
-
-        for key in necessary_keys:
-            assert key in kwargs, (
-                "Not all necessary keys are included to create an EVBattery "
-                "from dict. Missing: " + key
-            )
-
-        capacity = kwargs["capacity"]
-        max_charge_power = kwargs["max_charge_power"]
-        min_charge_power = kwargs["min_charge_power"]
-
-        efficiency = kwargs["efficiency"]
-
-        if "start_power_degradation" and "max_degradation_level" in kwargs:
-            start_power_degradation = kwargs["start_power_degradation"]
-            max_degradation_level = kwargs["max_degradation_level"]
-
-            return EVBattery(
-                capacity,
-                max_charge_power,
-                min_charge_power,
-                efficiency,
-                start_power_degradation,
-                max_degradation_level,
-            )
-
-        return EVBattery(capacity, max_charge_power, min_charge_power, efficiency)
 
 
 class EVBattery(Battery):
@@ -202,6 +176,139 @@ class EVBattery(Battery):
             raise InvalidParameterError("battery_parameter", str(e), "validation failed") from e
 
         super().__init__(
+            capacity,
+            max_charge_power,
+            min_charge_power,
+            efficiency,
+            start_power_degradation,
+            max_degradation_level,
+        )
+
+    def __str__(self) -> str:
+        """String representation of the EV battery."""
+        return f"EVBattery({self.capacity} kWh, {self.max_charge_power} kW, eff={self.efficiency})"
+
+    def energy_for_soc_change(self, current_soc: SOC, target_soc: SOC) -> Energy:
+        """Calculate energy needed/released for SOC change.
+
+        Args:
+            current_soc: Current state of charge [0,1]
+            target_soc: Target state of charge [0,1]
+
+        Returns:
+            Energy in kWh (positive for charging, negative for discharging)
+
+        Raises:
+            InvalidSOCError: If SOC values are outside valid range
+        """
+        # Validate SOC values
+        if not (0 <= current_soc <= 1):
+            raise InvalidSOCError(current_soc)
+        if not (0 <= target_soc <= 1):
+            raise InvalidSOCError(target_soc)
+
+        soc_change = target_soc - current_soc
+        energy_change = soc_change * self.capacity
+
+        # Account for efficiency when charging (positive energy change)
+        if energy_change > 0:  # Charging
+            energy_change = energy_change / self.efficiency
+
+        return energy_change
+
+    def time_for_soc_change(
+        self, current_soc: SOC, target_soc: SOC, charge_power: Power
+    ) -> timedelta:
+        """Calculate time needed for SOC change at given power.
+
+        Args:
+            current_soc: Current state of charge [0,1]
+            target_soc: Target state of charge [0,1]
+            charge_power: Charging power in kW
+
+        Returns:
+            Time as timedelta object
+
+        Raises:
+            InvalidSOCError: If SOC values are outside valid range
+            InvalidParameterError: If charge_power is zero or negative
+        """
+        if charge_power <= 0:
+            raise InvalidParameterError("charge_power", charge_power, "must be positive")
+
+        energy_needed = self.energy_for_soc_change(current_soc, target_soc)
+        # energy_for_soc_change already accounts for efficiency
+
+        time_hours = abs(energy_needed) / charge_power
+        return timedelta(hours=time_hours)
+
+    def max_power_at_soc(self, soc: SOC) -> Power:
+        """Get maximum power available at specific SOC.
+
+        Alias for max_power_possible() for test compatibility.
+
+        Args:
+            soc: State of charge [0,1]
+
+        Returns:
+            Maximum power available at this SOC
+        """
+        return self.max_power_possible(soc)
+
+    def clamp_power(self, power: Power) -> Power:
+        """Clamp power value to battery's min/max limits.
+
+        Args:
+            power: Power value to clamp
+
+        Returns:
+            Clamped power value within battery limits
+        """
+        return max(self.min_charge_power, min(power, self.max_charge_power))
+
+    @classmethod
+    def from_dict(cls, data: ConfigDict = None, **kwargs: Any) -> EVBattery:
+        """Create EVBattery from dictionary.
+
+        Args:
+            data: Dictionary containing battery parameters
+            **kwargs: Additional keyword arguments
+
+        Returns:
+            EVBattery instance
+
+        Raises:
+            KeyError: If required parameters are missing
+            InvalidParameterError: If parameters are invalid
+        """
+        # Support both dict parameter and kwargs
+        if data is not None:
+            kwargs.update(data)
+
+        necessary_keys = ["capacity", "max_charge_power", "min_charge_power", "efficiency"]
+
+        for key in necessary_keys:
+            if key not in kwargs:
+                raise KeyError(f"Required parameter '{key}' missing for EVBattery creation")
+
+        capacity = kwargs["capacity"]
+        max_charge_power = kwargs["max_charge_power"]
+        min_charge_power = kwargs["min_charge_power"]
+        efficiency = kwargs["efficiency"]
+
+        # Optional parameters with defaults
+        start_power_degradation = kwargs.get("start_power_degradation", 1.0)
+        # Set default max_degradation_level to ensure constraint is satisfied
+        if "max_degradation_level" in kwargs:
+            max_degradation_level = kwargs["max_degradation_level"]
+        # Calculate minimum viable degradation level to satisfy constraint
+        elif min_charge_power > 0 and max_charge_power > 0:
+            min_degradation_level = min_charge_power / max_charge_power
+            max_degradation_level = max(0.1, min_degradation_level)
+        else:
+            max_degradation_level = 0.0
+
+        return cls(
             capacity,
             max_charge_power,
             min_charge_power,

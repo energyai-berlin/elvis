@@ -2,27 +2,35 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from elvis.charging_point import ChargingPoint
 from elvis.infrastructure_node import Storage, Transformer
-from elvis.types import ConfigDict
 from elvis.utility.elvis_general import floor
+
+if TYPE_CHECKING:
+    from elvis.types import ConfigDict
 
 
 class SchedulingPolicy:
+    """Base class for EV charging scheduling policies."""
+
     def __init__(self) -> None:
+        """Initialize the scheduling policy."""
         self.state: Any = None
 
     def schedule(
         self, config: ConfigDict, free_cps: set[ChargingPoint], busy_cps: set[ChargingPoint]
-    ) -> Any:
+    ) -> dict[str, Any]:
         """Subclasses should override this with their scheduling implementation."""
         raise NotImplementedError
 
     @staticmethod
-    def get_storage_system(free_cps, busy_cps):
+    def get_storage_system(
+        free_cps: set[ChargingPoint], busy_cps: set[ChargingPoint]
+    ) -> Storage | None:
         """Returns the storage_system from the infrastructure by accessing a charging point.
+
         Free cps and busy cps necessary since both (not at the same time) could be empty sets.
         """
         transformer = SchedulingPolicy.get_transformer(free_cps, busy_cps)
@@ -34,8 +42,9 @@ class SchedulingPolicy:
         return storage_system
 
     @staticmethod
-    def get_transformer(free_cps, busy_cps):
+    def get_transformer(free_cps: set[ChargingPoint], busy_cps: set[ChargingPoint]) -> Transformer:
         """Returns the transformer from the infrastructure by accessing a charging point.
+
         Free cps and busy cps necessary since both (not at the same time) could be empty sets.
         """
         if len(free_cps) > 0:
@@ -53,12 +62,29 @@ class SchedulingPolicy:
 class Uncontrolled(SchedulingPolicy):
     """Implements the 'Uncontrolled' scheduling policy."""
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return string representation of the scheduling policy."""
         return "Uncontrolled"
 
-    def schedule(self, config, free_cps, busy_cps, time_steps_pos=0):
-        """Assign maximum power to all vehicles possible in disregard of available power from
-        grid. Infrastructure limits will be disregarded.
+    def schedule(
+        self,
+        config: ConfigDict,
+        free_cps: set[ChargingPoint],
+        busy_cps: set[ChargingPoint],
+        time_steps_pos: int = 0,
+    ) -> dict[str, Any]:
+        """Assign maximum power to all vehicles possible in disregard of available power from grid.
+
+        Infrastructure limits will be disregarded.
+
+        Args:
+            config: Configuration dictionary with scenario parameters.
+            free_cps: Set of available charging points.
+            busy_cps: Set of occupied charging points.
+            time_steps_pos: Current time step position.
+
+        Returns:
+            Dictionary with power assignments for charging points and storage.
         """
         assign_power = {"cps": dict.fromkeys(set.union(free_cps, busy_cps), 0)}
         assign_power["storage"] = {}
@@ -88,7 +114,8 @@ class Uncontrolled(SchedulingPolicy):
         if storage_system is not None:
             if total_power > transformer.max_power:
                 max_storage = storage_system.storage.max_discharge_power(0, resolution)
-                # The power from the storage system is not able to cover the whole transformer overhead
+                # The power from the storage system is not able to cover the whole
+                # transformer overhead
                 if max_storage < total_power - transformer.max_power:
                     assign_power["storage"][storage_system] = -max_storage
                 # Storage covers the transformer overhead
@@ -105,17 +132,35 @@ class Uncontrolled(SchedulingPolicy):
 class FCFS(SchedulingPolicy):
     """Implements the 'First Come First Serve' scheduling policy."""
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return string representation of the scheduling policy."""
         return "FCFS"
 
-    def schedule(self, config, free_cps, busy_cps, time_step_pos=0):
+    def schedule(
+        self,
+        config: ConfigDict,
+        free_cps: set[ChargingPoint],
+        busy_cps: set[ChargingPoint],
+        time_step_pos: int = 0,
+    ) -> dict[str, Any]:
         """Assign power to all connected vehicles. Vehicle boundaries as well as infrastructure
         boundaries have to be met. The power is distributed in order of arrival time.
+
+        Args:
+            config: Configuration dictionary with scenario parameters.
+            free_cps: Set of available charging points.
+            busy_cps: Set of occupied charging points.
+            time_step_pos: Current time step position.
+
+        Returns:
+            Dictionary with power assignments for charging points and storage.
         """
         assign_power = {"cps": dict.fromkeys(set.union(free_cps, busy_cps), 0)}
         assign_power["storage"] = {}
         resolution = config.resolution
-        preload = config.transformer_preload[time_step_pos]
+        preload = (
+            0 if config.transformer_preload is None else config.transformer_preload[time_step_pos]
+        )
 
         # All charging points with a connected vehicle assign max possible power
         sorted_busy_cps = list(busy_cps)
@@ -181,24 +226,51 @@ class FCFS(SchedulingPolicy):
 class WithStorage(SchedulingPolicy):
     """Implements the 'Storage' scheduling policy."""
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return string representation of the scheduling policy."""
         return "With Storage"
 
-    def schedule(self, config, free_cps, busy_cps, time_step_pos=0):
-        pass
+    def schedule(
+        self,
+        config: ConfigDict,
+        free_cps: set[ChargingPoint],
+        busy_cps: set[ChargingPoint],
+        time_step_pos: int = 0,
+    ) -> None:
+        """Schedule charging with storage (not implemented)."""
 
 
 class DiscriminationFree(SchedulingPolicy):
     """Implements the 'Discrimination Free' scheduling policy."""
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return string representation of the scheduling policy."""
         return "Discrimination Free"
 
-    def schedule(self, config, free_cps, busy_cps, time_step_pos=0):
+    def schedule(
+        self,
+        config: ConfigDict,
+        free_cps: set[ChargingPoint],
+        busy_cps: set[ChargingPoint],
+        time_step_pos: int = 0,
+    ) -> dict[str, Any]:
+        """Schedule charging based on discrimination-free policy.
+
+        Args:
+            config: Configuration dictionary with scenario parameters.
+            free_cps: Set of available charging points.
+            busy_cps: Set of occupied charging points.
+            time_step_pos: Current time step position.
+
+        Returns:
+            Dictionary with power assignments for charging points and storage.
+        """
         assign_power = {"cps": dict.fromkeys(set.union(free_cps, busy_cps), 0)}
         assign_power["storage"] = {}
         resolution = config.resolution
-        preload = config.transformer_preload[time_step_pos]
+        preload = (
+            0 if config.transformer_preload is None else config.transformer_preload[time_step_pos]
+        )
 
         self.update_state(busy_cps, config)
         sorted_busy_cps = self.sort_cps(config)
@@ -264,7 +336,15 @@ class DiscriminationFree(SchedulingPolicy):
 
         return assign_power
 
-    def sort_cps(self, config):
+    def sort_cps(self, config: ConfigDict) -> list[ChargingPoint]:
+        """Sort charging points based on discrimination-free criteria.
+
+        Args:
+            config: Configuration dictionary with scenario parameters.
+
+        Returns:
+            List of charging points sorted by discrimination-free criteria.
+        """
         secs_to_charge_constantly = config.df_charging_period.total_seconds()
         secs_per_step = config.resolution.total_seconds()
         time_steps_to_charge_in_a_row = int(max(secs_to_charge_constantly / secs_per_step, 1))
@@ -281,10 +361,15 @@ class DiscriminationFree(SchedulingPolicy):
             ),
             reverse=True,
         )
-
         return state_list
 
-    def update_state(self, cps, config):
+    def update_state(self, cps: set[ChargingPoint], config: ConfigDict) -> None:
+        """Update the state of the charging points.
+
+        Args:
+            cps: Set of charging points to update.
+            config: Configuration dictionary with scenario parameters.
+        """
         if self.state is not None:
             state_keys = self.state.keys()
 
@@ -325,7 +410,7 @@ class DiscriminationFree(SchedulingPolicy):
                     self.state[cp] = {"id": cp.connected_vehicle["id"], "times_charged": 0}
 
         else:  # will only be called once for initialisation
-            self.state = dict()
+            self.state = {}
             for cp in cps:
                 self.state[cp] = {"id": cp.connected_vehicle["id"], "times_charged": 0}
 
@@ -333,8 +418,9 @@ class DiscriminationFree(SchedulingPolicy):
 class Optimized(SchedulingPolicy):
     """Implements the 'Optimized' scheduling policy."""
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return string representation of the scheduling policy."""
         return "Optimized"
 
-    def schedule(self, config):
-        pass
+    def schedule(self, config: ConfigDict) -> None:
+        """Schedule charging with optimization (not implemented)."""

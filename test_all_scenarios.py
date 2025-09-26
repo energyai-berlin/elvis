@@ -18,6 +18,7 @@ sys.path.insert(0, str(project_root))
 
 from elvis.config import ScenarioConfig
 from elvis.simulate import simulate
+from elvis.enums import SchedulingPolicyType
 
 
 def load_scenario_config(yaml_path: str) -> dict[str, Any]:
@@ -26,13 +27,19 @@ def load_scenario_config(yaml_path: str) -> dict[str, Any]:
         return yaml.safe_load(f)
 
 
-def run_scenario_test(scenario_name: str, config_path: str) -> dict[str, Any]:
+def run_scenario_test(
+    scenario_name: str, config_path: str, policy_type: SchedulingPolicyType = None
+) -> dict[str, Any]:
     """Run a single scenario test and return results."""
-    result = {"scenario": scenario_name, "status": "UNKNOWN", "error": None, "details": {}}
+    policy_suffix = f"_{policy_type.value}" if policy_type else ""
+    test_name = f"{scenario_name}{policy_suffix}"
+    result = {"scenario": test_name, "status": "UNKNOWN", "error": None, "details": {}}
 
     try:
         print(f"\n{'=' * 60}")
         print(f"Testing scenario: {scenario_name}")
+        if policy_type:
+            print(f"Policy: {policy_type.value}")
         print(f"Config file: {config_path}")
         print(f"{'=' * 60}")
 
@@ -62,6 +69,11 @@ def run_scenario_test(scenario_name: str, config_path: str) -> dict[str, Any]:
         # 3. Create ScenarioConfig from YAML (tests our enum/validation systems)
         print("3. Creating ScenarioConfig from YAML...")
         config = ScenarioConfig.from_yaml(yaml_data)
+
+        # Override scheduling policy if specified
+        if policy_type:
+            config.with_scheduling_policy(policy_type)
+
         print("   ✅ ScenarioConfig created successfully")
         print(f"   📊 Scheduling policy: {config.scheduling_policy}")
         print(f"   📊 Number of charging events: {config.num_charging_events}")
@@ -71,8 +83,8 @@ def run_scenario_test(scenario_name: str, config_path: str) -> dict[str, Any]:
 
         # 4. Create realisation for short simulation period
         print("4. Creating scenario realisation...")
-        start_date = "2020-01-01 00:00:00"
-        end_date = "2020-01-01 23:00:00"  # 24 hour test period
+        start_date = "2025-01-01 00:00:00"
+        end_date = "2025-12-31 23:00:00"
         resolution = "01:00:00"
 
         realisation = config.create_realisation(start_date, end_date, resolution)
@@ -120,6 +132,7 @@ def run_scenario_test(scenario_name: str, config_path: str) -> dict[str, Any]:
                     else 0,
                     "vehicle_types_count": len(config.vehicle_types) if config.vehicle_types else 0,
                     "scheduling_policy": str(config.scheduling_policy),
+                    "policy_type": policy_type.value if policy_type else "default",
                 },
             }
         )
@@ -132,10 +145,10 @@ def run_scenario_test(scenario_name: str, config_path: str) -> dict[str, Any]:
 
 
 def main():
-    """Main test function that runs all scenario configurations."""
-    print("🚀 ELVIS Phase 2 Scenario Validation Test")
-    print("Testing all configurations in data/config_builder/")
-    print("This validates our enum, validation, and exception handling systems")
+    """Main test function that runs all scenario configurations with multiple scheduling policies."""
+    print("🚀 ELVIS Multi-Policy Scenario Validation Test")
+    print("Testing all configurations in data/config_builder/ with multiple scheduling policies")
+    print("This validates our scheduling policy implementations and compares their performance")
 
     # Find all YAML files in config_builder directory
     config_dir = project_root / "data" / "config_builder"
@@ -145,17 +158,39 @@ def main():
         print("❌ No YAML files found in data/config_builder/")
         return False
 
+    # Define policies to test (only implemented ones)
+    implemented_policies = [
+        SchedulingPolicyType.UNCONTROLLED,
+        SchedulingPolicyType.FCFS,
+        SchedulingPolicyType.DISCRIMINATION_FREE,
+    ]
+
+    # Note unimplemented policies
+    unimplemented_policies = [
+        SchedulingPolicyType.WITH_STORAGE,
+        SchedulingPolicyType.OPTIMIZED,
+    ]
+
     print(f"\n📁 Found {len(yaml_files)} scenario configurations:")
     for yaml_file in sorted(yaml_files):
         print(f"   - {yaml_file.name}")
 
-    # Run tests for all scenarios
+    print(f"\n🔄 Will test {len(implemented_policies)} scheduling policies:")
+    for policy in implemented_policies:
+        print(f"   ✅ {policy.value}")
+
+    print(f"\n⚠️  Skipping {len(unimplemented_policies)} unimplemented policies:")
+    for policy in unimplemented_policies:
+        print(f"   ❌ {policy.value} (not implemented)")
+
+    # Run tests for all scenarios and all implemented policies
     all_results: list[dict[str, Any]] = []
 
     for yaml_file in sorted(yaml_files):
         scenario_name = yaml_file.stem
-        result = run_scenario_test(scenario_name, str(yaml_file))
-        all_results.append(result)
+        for policy_type in implemented_policies:
+            result = run_scenario_test(scenario_name, str(yaml_file), policy_type)
+            all_results.append(result)
 
     # Summary report
     print(f"\n{'=' * 80}")
@@ -174,15 +209,27 @@ def main():
 
     if successful:
         print("\n🎉 SUCCESSFUL SCENARIOS:")
+
+        # Group results by scenario name for comparison
+        scenario_groups = {}
         for result in successful:
-            details = result["details"]
-            print(
-                f"   ✅ {result['scenario']:<25} | "
-                f"Energy: {details.get('total_energy_kwh', 0):<8.2f} kWh | "
-                f"Max Load: {details.get('max_load_kw', 0):<8.2f} kW | "
-                f"Events: {details.get('charging_events_count', 0):<4} | "
-                f"Policy: {details.get('scheduling_policy', 'N/A')}"
-            )
+            scenario_base = result["scenario"].split("_")[0]  # Get base scenario name
+            if scenario_base not in scenario_groups:
+                scenario_groups[scenario_base] = []
+            scenario_groups[scenario_base].append(result)
+
+        for scenario_base, scenario_results in sorted(scenario_groups.items()):
+            print(f"\n📊 {scenario_base.upper()}:")
+            for result in scenario_results:
+                details = result["details"]
+                policy_type = details.get("policy_type", "default")
+                print(
+                    f"   ✅ {policy_type:<20} | "
+                    f"Energy: {details.get('total_energy_kwh', 0):<8.2f} kWh | "
+                    f"Max Load: {details.get('max_load_kw', 0):<8.2f} kW | "
+                    f"Events: {details.get('charging_events_count', 0):<6} | "
+                    f"Policy: {details.get('scheduling_policy', 'N/A')}"
+                )
 
     if failed:
         print("\n💥 FAILED SCENARIOS:")

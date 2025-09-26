@@ -139,7 +139,11 @@ def create_vehicle_arrivals(arrival_distribution, num_charging_events, time_step
         arrival_probability.append(dist[pos])
     # Normalize probability
     cumsum = sum(arrival_probability)
-    arrival_probability = [x / cumsum for x in arrival_probability]
+    if cumsum == 0:
+        # If all probabilities are zero, create uniform distribution
+        arrival_probability = [1.0 / len(arrival_probability)] * len(arrival_probability)
+    else:
+        arrival_probability = [x / cumsum for x in arrival_probability]
 
     # Get on average num_charging_events arrivals per week
     period = time_steps[-1] - time_steps[0]

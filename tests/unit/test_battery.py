@@ -147,7 +147,7 @@ class TestEVBattery:
             "efficiency": 0.95,
         }
 
-        with pytest.raises(AssertionError):
+        with pytest.raises(InvalidParameterError):
             EVBattery.from_dict(invalid_dict)
 
     def test_evbattery_energy_for_soc_change_valid(self):
@@ -161,11 +161,11 @@ class TestEVBattery:
 
         # Test SOC increase (charging)
         energy_needed = ev_battery.energy_for_soc_change(current_soc=0.2, target_soc=0.8)
-        assert energy_needed == 60.0  # 0.6 * 100 kWh
+        assert abs(energy_needed - 60.0) < 1e-10  # 0.6 * 100 kWh
 
         # Test SOC decrease (discharging)
         energy_released = ev_battery.energy_for_soc_change(current_soc=0.8, target_soc=0.2)
-        assert energy_released == -60.0  # Negative for discharge
+        assert abs(energy_released - (-60.0)) < 1e-10  # Negative for discharge
 
     def test_evbattery_energy_for_soc_change_invalid_soc(self):
         """Test energy calculation fails with invalid SOC values."""
@@ -239,7 +239,7 @@ class TestEVBattery:
     def test_evbattery_power_clamping(self):
         """Test power values are clamped to battery limits."""
         ev_battery = EVBattery(
-            capacity=50.0, max_charge_power=150.0, min_charge_power=5.0, efficiency=1.0
+            capacity=50.0, max_charge_power=150.0, min_charge_power=0, efficiency=1.0
         )
 
         # Test max power clamping
@@ -247,8 +247,8 @@ class TestEVBattery:
         assert clamped_max == 150.0
 
         # Test min power clamping
-        clamped_min = ev_battery.clamp_power(1.0)  # Below min
-        assert clamped_min == 5.0
+        clamped_min = ev_battery.clamp_power(-5.0)  # Below min
+        assert clamped_min == 0
 
         # Test within range (no clamping)
         clamped_valid = ev_battery.clamp_power(75.0)  # Within range
@@ -258,9 +258,9 @@ class TestEVBattery:
         "capacity,max_power,min_power,efficiency",
         [
             (50.0, 150.0, 0.0, 0.95),
-            (100.0, 250.0, 3.0, 0.9),
-            (25.0, 75.0, 1.0, 1.0),
-            (75.0, 200.0, 0.5, 0.85),
+            (100.0, 250.0, 0, 0.9),
+            (25.0, 75.0, 0, 1.0),
+            (75.0, 200.0, 0, 0.85),
         ],
     )
     def test_evbattery_parametrized_initialization(

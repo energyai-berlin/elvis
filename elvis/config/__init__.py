@@ -9,8 +9,8 @@ In Phase 2+, the functionality will be migrated to the structured modules.
 
 from __future__ import annotations
 
-# Phase 1: Import from original config.py (now renamed _config_legacy.py) for backward compatibility
-from .._config_legacy import ScenarioConfig, ScenarioRealisation
+# Phase 1: Import from the new modular config structure
+from .scenario import ScenarioConfig, ScenarioRealisation
 
 __all__ = [
     "ScenarioConfig",
