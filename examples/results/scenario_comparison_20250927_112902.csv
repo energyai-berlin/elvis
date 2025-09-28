@@ -1,0 +1,5 @@
+scenario,total_energy_kwh,max_load_kw,avg_charge_time_h,num_events,scheduling_policy
+Office,765.400301880923,29.80541637185046,3.66,50,Uncontrolled
+Residential,169.72173870520098,11.0,1.1111111111111112,50,Uncontrolled
+Gas Station,1154.215981053543,105.18659778857497,0.0,50,Uncontrolled
+Shopping Center,579.2581390577107,33.0,0.530612245,50,Uncontrolled
