@@ -285,7 +285,7 @@ The current ELVIS implementation has significant statistical flaws that reduce s
 
 **Current Problem**: All charging event variables are modeled as independent:
 - Arrival time ↔ State of Charge: No correlation (should be -0.25)
-- Vehicle type ↔ Parking duration: No correlation (should be +0.20)  
+- Vehicle type ↔ Parking duration: No correlation (should be +0.20)
 - SoC ↔ Parking duration: No correlation (should be -0.45)
 - Vehicle type ↔ Arrival time: No correlation (should be +0.10)
 
@@ -342,7 +342,7 @@ elif visit_purpose == 'shopping':
 class CorrelatedEventGenerator:
     def __init__(self, correlation_matrix):
         self.copula = GaussianCopula(correlation_matrix)
-    
+
     def generate_correlated_events(self, num_events):
         # Sample from multivariate distribution
         # Transform to marginal distributions
@@ -366,7 +366,7 @@ class PurposeBasedConfig:
 class EnhancedElectricVehicle:
     def get_parking_distribution(self):
         # Return vehicle-specific parking patterns
-    
+
     def get_soc_dependency(self, trip_context):
         # Return SoC based on vehicle characteristics
 ```
@@ -379,7 +379,7 @@ class EnhancedElectricVehicle:
 class GooglePopularityAPI:
     def fetch_hourly_patterns(self, place_id):
         # Real-time Google popularity data
-    
+
 class WeatherAPI:
     def get_weather_impact(self, location, date):
         # Weather-based consumption adjustments
@@ -396,7 +396,7 @@ class HierarchicalChargingModel:
     def __init__(self):
         self.context_model = ContextualModel()
         self.behavior_model = ConditionalBehaviorModel()
-    
+
     def generate_realistic_events(self, context):
         # Multi-level behavioral modeling
 ```
@@ -407,7 +407,7 @@ class HierarchicalChargingModel:
 class AdaptiveLearningModel:
     def update_from_observations(self, observed_data):
         # Online learning from real charging data
-    
+
     def predict_future_patterns(self, forecast_horizon):
         # Predictive modeling for planning
 ```
@@ -434,7 +434,7 @@ correlations:
   vehicle_parking: 0.20
   soc_parking: -0.45
 
-# Purpose-based parameters  
+# Purpose-based parameters
 purposes:
   work_commute:
     probability: 0.4
@@ -458,10 +458,10 @@ data_sources:
 class EnhancedConfigValidator:
     def validate_correlations(self, correlations):
         # Ensure correlation matrix is positive definite
-    
+
     def validate_purpose_probabilities(self, purposes):
         # Ensure purpose probabilities sum to 1.0
-    
+
     def validate_data_sources(self, sources):
         # Check API connectivity and data availability
 ```
@@ -497,7 +497,7 @@ This roadmap provides a clear path to transform ELVIS from a basic stochastic si
 #### **Issue 1: Distribution Independence Assumptions**
 **Problem**: All distributions (arrival time, parking duration, SoC, vehicle type) are modeled as independent variables, which contradicts real-world EV charging behavior.
 
-**Current Impact**: 
+**Current Impact**:
 - 20-30% error in charging demand patterns
 - Unrealistic load profile predictions
 - Poor infrastructure utilization estimates
@@ -510,7 +510,7 @@ This roadmap provides a clear path to transform ELVIS from a basic stochastic si
 ```python
 # Current problematic pattern:
 vehicle_type = walker.random()  # Independent
-parking_time = np.random.normal(mean_park, std_deviation_park)  # Independent  
+parking_time = np.random.normal(mean_park, std_deviation_park)  # Independent
 soc = np.random.normal(mean_soc, std_deviation_soc)  # Independent
 
 # Should be replaced with correlated sampling
@@ -559,7 +559,7 @@ class GooglePopularityAPI:
 ```bash
 # High-priority tasks
 [ ] Implement SoC-dependent parking duration correlation
-[ ] Add vehicle-type-dependent behavior patterns  
+[ ] Add vehicle-type-dependent behavior patterns
 [ ] Create purpose-driven arrival modeling
 [ ] Add temporal autocorrelation for user habits
 ```
@@ -598,7 +598,7 @@ def sample_correlated_charging_event(self, context):
     vehicle_type = self.sample_vehicle_for_purpose(purpose)
     parking_duration = self.sample_parking_for_purpose(purpose, vehicle_type)
     soc = self.sample_soc_for_trip(purpose, vehicle_type, context.weather)
-    
+
 # BAD: Independent sampling (current approach)
 def sample_independent_charging_event(self):
     vehicle_type = self.walker.random()
@@ -610,7 +610,7 @@ def sample_independent_charging_event(self):
 ```bash
 # Add to pyproject.toml
 uv add googlemaps              # Google Places API
-uv add scipy                   # Enhanced statistical distributions  
+uv add scipy                   # Enhanced statistical distributions
 uv add scikit-learn           # Advanced clustering and correlation
 uv add requests               # External API integration
 uv add --dev pytest-mock      # Testing API integrations
@@ -626,7 +626,7 @@ uv add --dev pytest-mock      # Testing API integrations
 
 #### **Success Metrics**:
 - **Arrival pattern correlation**: >0.8 with real location data
-- **Load profile accuracy**: <15% MAPE vs actual charging infrastructure data  
+- **Load profile accuracy**: <15% MAPE vs actual charging infrastructure data
 - **Peak demand prediction**: <20% error in 95th percentile loads
 - **Infrastructure utilization**: <10% error in capacity factor predictions
 
@@ -635,7 +635,7 @@ uv add --dev pytest-mock      # Testing API integrations
 ```bash
 # Required test files to create/update
 tests/test_correlated_distributions.py    # Test correlation implementations
-tests/test_google_api_integration.py      # Test external data integration  
+tests/test_google_api_integration.py      # Test external data integration
 tests/test_behavioral_validation.py       # Validate against real-world patterns
 tests/test_statistical_accuracy.py        # Statistical goodness-of-fit tests
 ```
@@ -658,7 +658,7 @@ This roadmap provides a clear path to transform ELVIS from a simplified simulati
 - **Document correlations**: Clearly explain the real-world basis for any correlation
 - **Test edge cases**: Ensure correlations don't produce impossible scenarios (e.g., negative SoC)
 
-### For External Data Integration  
+### For External Data Integration
 - **API Error Handling**: All external API calls must have robust error handling and fallbacks
 - **Data Validation**: Validate all external data before using in simulations
 - **Caching Strategy**: Implement appropriate caching for external API calls
